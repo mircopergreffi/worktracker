@@ -6,16 +6,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.workhours.data.AppDatabase
 import com.example.workhours.data.Entry
+import com.example.workhours.data.workedSeconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+
+data class DaySummary(val day: LocalDate, val seconds: Long, val count: Int)
 
 data class UiState(
     val entries: List<Entry> = emptyList(),
@@ -60,22 +63,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())
 
-    /** Sums IN→OUT pairs; an open IN counts up to "now". */
-    private fun workedSeconds(entries: List<Entry>, now: LocalTime): Long {
-        var total = 0L
-        var start: LocalTime? = null
-        for (e in entries) {
-            val t = LocalTime.parse(e.time)
-            if (e.inOut == "IN") {
-                if (start == null) start = t
-            } else if (start != null) {
-                total += Duration.between(start, t).seconds
-                start = null
+    /** Last 30 days (today first) with worked seconds per day, including empty days. */
+    val history: StateFlow<List<DaySummary>> = clock
+        .map { it.toLocalDate() }
+        .distinctUntilChanged()
+        .flatMapLatest { today ->
+            dao.observeSince(today.minusDays(29).toString()).combine(clock) { all, now ->
+                val byDay = all.groupBy { it.day }
+                (0..29).map { i ->
+                    val d = today.minusDays(i.toLong())
+                    val list = byDay[d.toString()].orEmpty()
+                    DaySummary(d, workedSeconds(list, if (i == 0) now.toLocalTime() else null), list.size)
+                }
             }
         }
-        if (start != null) total += maxOf(0, Duration.between(start, now).seconds)
-        return total
-    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Entries and worked time for any single day. */
+    fun dayState(day: LocalDate): Flow<UiState> =
+        dao.observeDay(day.toString()).combine(clock) { entries, now ->
+            UiState(
+                entries = entries,
+                workedSeconds = workedSeconds(entries, if (day == now.toLocalDate()) now.toLocalTime() else null),
+                isIn = entries.lastOrNull()?.inOut == "IN"
+            )
+        }
 
     fun mark(inOut: String) {
         viewModelScope.launch {

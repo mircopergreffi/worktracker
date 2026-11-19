@@ -10,6 +10,9 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE day = :day ORDER BY time ASC, id ASC")
     fun observeDay(day: String): Flow<List<Entry>>
 
+    @Query("SELECT * FROM entries WHERE day >= :since ORDER BY day ASC, time ASC, id ASC")
+    fun observeSince(since: String): Flow<List<Entry>>
+
     @Query("SELECT * FROM entries ORDER BY day ASC, time ASC, id ASC")
     suspend fun getAll(): List<Entry>
 

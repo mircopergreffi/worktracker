@@ -14,6 +14,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import java.time.LocalDate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,18 +25,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
+import com.example.workhours.data.Entry
 
 @Composable
 fun AppRoot(vm: MainViewModel, isDark: Boolean) {
-    var showSettings by remember { mutableStateOf(false) }
-    BackHandler(showSettings) { showSettings = false }
-    if (showSettings) SettingsScreen(vm) { showSettings = false }
-    else MainScreen(vm, isDark) { showSettings = true }
+    var screen by rememberSaveable { mutableStateOf("main") }
+    var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
+
+    BackHandler(screen != "main") { screen = if (screen == "day") "history" else "main" }
+
+    when (screen) {
+        "settings" -> SettingsScreen(vm) { screen = "main" }
+        "history" -> HistoryScreen(vm, onBack = { screen = "main" }) {
+            selectedDay = it.toString(); screen = "day"
+        }
+        "day" -> DayScreen(vm, LocalDate.parse(selectedDay!!)) { screen = "history" }
+        else -> MainScreen(vm, isDark, onSettings = { screen = "settings" }, onHistory = { screen = "history" })
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit) {
+fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHistory: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
@@ -61,6 +73,10 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit) {
                         DropdownMenuItem(
                             text = { Text(if (isDark) "Light theme" else "Dark theme") },
                             onClick = { menu = false; vm.setDark(!isDark) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("History") },
+                            onClick = { menu = false; onHistory() }
                         )
                         DropdownMenuItem(
                             text = { Text("Export database (txt)") },
@@ -113,21 +129,7 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit) {
             }
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(state.entries, key = { it.id }) { e ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            e.inOut,
-                            Modifier.width(56.dp),
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (e.inOut == "IN") MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.secondary
-                        )
-                        Text(e.time, fontFamily = FontFamily.Monospace, fontSize = 16.sp)
-                    }
+                    EntryRow(e)
                 }
             }
         }
@@ -176,5 +178,26 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 }
 
-private fun formatHms(total: Long): String =
+fun formatHms(total: Long): String =
     "%02d:%02d:%02d".format(total / 3600, (total % 3600) / 60, total % 60)
+
+fun formatHm(total: Long): String = "%dh %02dm".format(total / 3600, (total % 3600) / 60)
+
+@Composable
+fun EntryRow(e: Entry) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            e.inOut,
+            Modifier.width(56.dp),
+            fontWeight = FontWeight.SemiBold,
+            color = if (e.inOut == "IN") MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.secondary
+        )
+        Text(e.time, fontFamily = FontFamily.Monospace, fontSize = 16.sp)
+    }
+}
