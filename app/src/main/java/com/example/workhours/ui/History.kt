@@ -33,9 +33,27 @@ private val longDate = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy")
 @Composable
 fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onDay: (LocalDate) -> Unit) {
     val days by vm.history.collectAsStateWithLifecycle()
+    val filter by vm.historyFilter.collectAsStateWithLifecycle()
+    val clients by vm.clients.collectAsStateWithLifecycle()
+    val projects by vm.projects.collectAsStateWithLifecycle()
     var picking by remember { mutableStateOf(false) }
+
     val total = days.sumOf { it.seconds }
     val max = maxOf(days.maxOfOrNull { it.seconds } ?: 0L, 1L)
+
+    val client = clients.find { it.id == filter.clientId }
+    val project = projects.find { it.id == filter.projectId }
+    val clientsById = clients.associateBy { it.id }
+
+    val clientOptions = listOf(Option(-1, "All clients", null)) +
+        clients.map { Option(it.id, it.name, it.color) }
+    // Without a client, every project is listed with its client name next to it.
+    val projectOptions = listOf(Option(-1, "All projects", null)) + projects
+        .filter { client == null || it.clientId == client.id }
+        .map {
+            if (client == null) Option(it.id, "${it.name} · ${clientsById[it.clientId]?.name ?: "?"}", clientsById[it.clientId]?.color)
+            else Option(it.id, it.name, null)
+        }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -53,10 +71,43 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onDay: (LocalDate) -> U
         }
     ) { padding ->
         Column(Modifier.padding(padding).padding(horizontal = 24.dp).fillMaxSize()) {
-            Spacer(Modifier.height(16.dp))
-            Text("Last 30 days", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            PeriodSelector(value = filter.period, onChange = vm::setPeriod, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Selector(
+                    label = "All clients",
+                    selected = client?.let { Option(it.id, it.name, it.color) },
+                    options = clientOptions,
+                    enabled = true,
+                    addLabel = null,
+                    onSelect = { id -> vm.setFilterClient(if (id >= 0) id else null) },
+                    modifier = Modifier.weight(1f)
+                )
+                Selector(
+                    label = "All projects",
+                    selected = project?.let { Option(it.id, it.name, null) },
+                    options = projectOptions,
+                    enabled = true,
+                    addLabel = null,
+                    onSelect = { id -> vm.setFilterProject(if (id >= 0) id else null) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Hide empty days", Modifier.weight(1f))
+                Switch(checked = filter.hideEmpty, onCheckedChange = vm::setHideEmpty)
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(filter.period.label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
             Text(formatHm(total), fontSize = 40.sp, fontWeight = FontWeight.Light, fontFamily = FontFamily.Monospace)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
+
+            if (days.isEmpty()) {
+                Text("No days to show", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+            }
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(days, key = { it.day.toString() }) { d ->
                     Row(

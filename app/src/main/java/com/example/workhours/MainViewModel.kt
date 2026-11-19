@@ -23,6 +23,13 @@ data class UiState(
     val isIn: Boolean = false
 )
 
+data class HistoryFilter(
+    val period: HistoryPeriod,
+    val clientId: Long? = null,
+    val projectId: Long? = null,
+    val hideEmpty: Boolean = false
+)
+
 data class Selection(val clientId: Long? = null, val projectId: Long? = null)
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -83,6 +90,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         dao.deleteProjectsOfClient(client.id)
         dao.deleteClient(client.id)
         if (_selection.value.clientId == client.id) setSelection(null, null)
+        if (_filter.value.clientId == client.id) _filter.update { it.copy(clientId = null, projectId = null) }
         onResult(true)
     }
 
@@ -100,6 +108,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         dao.deleteProject(project.id)
         if (_selection.value.projectId == project.id) setSelection(_selection.value.clientId, null)
+        if (_filter.value.projectId == project.id) _filter.update { it.copy(projectId = null) }
         onResult(true)
     }
 
@@ -125,18 +134,49 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())
 
-    /** Last 30 days (today first) with worked seconds per day, including empty days. */
-    val history: StateFlow<List<DaySummary>> = clock
-        .map { it.toLocalDate() }
-        .distinctUntilChanged()
-        .flatMapLatest { today ->
-            dao.observeSince(today.minusDays(29).toString()).combine(clock) { all, now ->
-                val byDay = all.groupBy { it.day }
-                (0..29).map { i ->
-                    val d = today.minusDays(i.toLong())
-                    val list = byDay[d.toString()].orEmpty()
-                    DaySummary(d, workedSeconds(list, if (i == 0) now.toLocalTime() else null), list.size)
-                }
+    // ---------- history filter ----------
+    private fun loadPeriod(): HistoryPeriod =
+        runCatching { HistoryPeriod.valueOf(prefs.getString("default_period", "") ?: "") }
+            .getOrDefault(HistoryPeriod.LAST_30)
+
+    private val _defaultPeriod = MutableStateFlow(loadPeriod())
+    val defaultPeriod: StateFlow<HistoryPeriod> = _defaultPeriod
+
+    private val _filter = MutableStateFlow(HistoryFilter(_defaultPeriod.value))
+    val historyFilter: StateFlow<HistoryFilter> = _filter
+
+    fun setDefaultPeriod(period: HistoryPeriod) {
+        prefs.edit().putString("default_period", period.name).apply()
+        _defaultPeriod.value = period
+        _filter.update { it.copy(period = period) }
+    }
+
+    fun setPeriod(period: HistoryPeriod) = _filter.update { it.copy(period = period) }
+    fun setHideEmpty(hide: Boolean) = _filter.update { it.copy(hideEmpty = hide) }
+    fun setFilterClient(id: Long?) = _filter.update { it.copy(clientId = id, projectId = null) }
+
+    /** Picking a project also selects its client, so the two filters never disagree. */
+    fun setFilterProject(id: Long?) = _filter.update { f ->
+        val owner = id?.let { pid -> projects.value.find { it.id == pid }?.clientId } ?: f.clientId
+        f.copy(clientId = owner, projectId = id)
+    }
+
+    /** One row per day of the selected period (newest first), for the selected client / project. */
+    val history: StateFlow<List<DaySummary>> = _filter
+        .flatMapLatest { f ->
+            clock.map { it.toLocalDate() }.distinctUntilChanged().flatMapLatest { today ->
+                val (from, to) = f.period.range(today)
+                dao.observeRange(from.toString(), to.toString(), f.clientId, f.projectId)
+                    .combine(clock) { all, now ->
+                        val byDay = all.groupBy { it.day }
+                        generateSequence(to) { d -> d.minusDays(1).takeIf { !it.isBefore(from) } }
+                            .map { d ->
+                                val list = byDay[d.toString()].orEmpty()
+                                DaySummary(d, workedSeconds(list, if (d == today) now.toLocalTime() else null), list.size)
+                            }
+                            .filter { !f.hideEmpty || it.count > 0 }
+                            .toList()
+                    }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

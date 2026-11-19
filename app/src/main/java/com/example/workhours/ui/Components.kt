@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.workhours.HistoryPeriod
 
 /** Colors a client can be given (ARGB ints). */
 val Palette: List<Int> = listOf(
@@ -37,9 +38,9 @@ fun Selector(
     selected: Option?,
     options: List<Option>,
     enabled: Boolean,
-    addLabel: String,
+    addLabel: String?,
     onSelect: (Long) -> Unit,
-    onAdd: () -> Unit,
+    onAdd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var open by remember { mutableStateOf(false) }
@@ -74,11 +75,13 @@ fun Selector(
                     onClick = { open = false; onSelect(o.id) }
                 )
             }
-            if (options.isNotEmpty()) HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text(addLabel, color = MaterialTheme.colorScheme.primary) },
-                onClick = { open = false; onAdd() }
-            )
+            if (addLabel != null) {
+                if (options.isNotEmpty()) HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(addLabel, color = MaterialTheme.colorScheme.primary) },
+                    onClick = { open = false; onAdd() }
+                )
+            }
         }
     }
 }
@@ -146,4 +149,26 @@ fun NameColorDialog(
             }
         }
     )
+}
+
+/** Dropdown to choose a history period (last 30 days, current week, ...). */
+@Composable
+fun PeriodSelector(value: HistoryPeriod, onChange: (HistoryPeriod) -> Unit, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedButton(
+            onClick = { open = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp)
+        ) {
+            Text(value.label, Modifier.weight(1f), maxLines = 1, textAlign = TextAlign.Start)
+            Text("▾")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            HistoryPeriod.entries.forEach { p ->
+                DropdownMenuItem(text = { Text(p.label) }, onClick = { open = false; onChange(p) })
+            }
+        }
+    }
 }

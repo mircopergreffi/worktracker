@@ -204,6 +204,7 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) {
     var confirm by remember { mutableStateOf<String?>(null) }
+    val defaultPeriod by vm.defaultPeriod.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -222,6 +223,14 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
         Column(Modifier.padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Lists", fontWeight = FontWeight.Medium)
             OutlinedButton(onClick = onManage, Modifier.fillMaxWidth()) { Text("Clients & projects") }
+            Spacer(Modifier.height(12.dp))
+            Text("History", fontWeight = FontWeight.Medium)
+            Text(
+                "Default period",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                fontSize = 14.sp
+            )
+            PeriodSelector(value = defaultPeriod, onChange = vm::setDefaultPeriod)
             Spacer(Modifier.height(12.dp))
             Text("Data", fontWeight = FontWeight.Medium)
             OutlinedButton(onClick = { confirm = "today" }, Modifier.fillMaxWidth()) { Text("Delete today's entries") }

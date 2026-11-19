@@ -21,8 +21,13 @@ interface EntryDao {
     @Query(VIEW_SELECT + " WHERE e.day = :day ORDER BY e.time ASC, e.id ASC")
     fun observeDay(day: String): Flow<List<EntryView>>
 
-    @Query(VIEW_SELECT + " WHERE e.day >= :since ORDER BY e.day ASC, e.time ASC, e.id ASC")
-    fun observeSince(since: String): Flow<List<EntryView>>
+    @Query(
+        VIEW_SELECT + " WHERE e.day >= :from AND e.day <= :to" +
+            " AND (:clientId IS NULL OR e.client_id = :clientId)" +
+            " AND (:projectId IS NULL OR e.project_id = :projectId)" +
+            " ORDER BY e.day ASC, e.time ASC, e.id ASC"
+    )
+    fun observeRange(from: String, to: String, clientId: Long?, projectId: Long?): Flow<List<EntryView>>
 
     @Query(VIEW_SELECT + " ORDER BY e.day ASC, e.time ASC, e.id ASC")
     suspend fun getAllViews(): List<EntryView>
