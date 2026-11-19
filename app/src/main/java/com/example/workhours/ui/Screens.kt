@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +65,7 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
     var menu by remember { mutableStateOf(false) }
     var addClient by remember { mutableStateOf(false) }
     var addProject by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<EntryView?>(null) }
 
     // While clocked in, the selectors show (and lock to) the active entry's client / project.
     val active = state.entries.lastOrNull()
@@ -174,10 +177,12 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
                 Text("No entries yet", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                items(state.entries, key = { it.id }) { e -> EntryRow(e) }
+                items(state.entries, key = { it.id }) { e -> EntryRow(e, onClick = { editing = e }) }
             }
         }
     }
+
+    editing?.let { EntryEditor(it, state.entries, vm) { editing = null } }
 
     if (addClient) {
         NameColorDialog(
@@ -261,10 +266,12 @@ fun formatHm(total: Long): String = "%dh %02dm".format(total / 3600, (total % 36
 
 /** Order: client, project, in/out, time. */
 @Composable
-fun EntryRow(e: EntryView) {
+fun EntryRow(e: EntryView, onClick: (() -> Unit)? = null) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)

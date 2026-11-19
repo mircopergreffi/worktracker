@@ -20,13 +20,13 @@ data class Project(
 
 /** An entry joined with the current client / project names. */
 data class EntryView(
-    val id: Long,
+    override val id: Long,
     val day: String,
-    @ColumnInfo(name = "in_out") val inOut: String,
+    @ColumnInfo(name = "in_out") override val inOut: String,
     val time: String,
     @ColumnInfo(name = "client_id") val clientId: Long?,
     @ColumnInfo(name = "project_id") val projectId: Long?,
     @ColumnInfo(name = "client_name") val clientName: String?,
     @ColumnInfo(name = "client_color") val clientColor: Int?,
     @ColumnInfo(name = "project_name") val projectName: String?
-)
+) : Marked

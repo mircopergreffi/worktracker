@@ -44,6 +44,21 @@ interface EntryDao {
     @Query("DELETE FROM entries")
     suspend fun deleteAll()
 
+    @Query("SELECT * FROM entries WHERE id = :id")
+    suspend fun getEntry(id: Long): Entry?
+
+    @Query("SELECT * FROM entries WHERE day = :day ORDER BY time ASC, id ASC")
+    suspend fun entriesOfDay(day: String): List<Entry>
+
+    @Query("UPDATE entries SET time = :time WHERE id = :id")
+    suspend fun setTime(id: Long, time: String)
+
+    @Query("UPDATE entries SET client_id = :clientId, project_id = :projectId WHERE id IN (:ids)")
+    suspend fun setClientProject(ids: List<Long>, clientId: Long?, projectId: Long?)
+
+    @Query("DELETE FROM entries WHERE id IN (:ids)")
+    suspend fun deleteEntries(ids: List<Long>)
+
     // ---- clients ----
     @Query("SELECT * FROM clients ORDER BY name COLLATE NOCASE")
     fun observeClients(): Flow<List<Client>>

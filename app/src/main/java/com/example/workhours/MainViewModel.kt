@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 data class DaySummary(val day: LocalDate, val seconds: Long, val count: Int)
@@ -214,6 +215,51 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val last = dao.lastEntry()
         insertEntry("OUT", last?.clientId, last?.projectId)
     }
+
+    /** Deletes the entry together with its IN/OUT partner. Deleting a running IN stops the timer. */
+    fun deleteEntry(id: Long, onDone: () -> Unit = {}) = viewModelScope.launch {
+        val entry = dao.getEntry(id)
+        if (entry != null) {
+            val partner = partnerOf(dao.entriesOfDay(entry.day), id)
+            dao.deleteEntries(listOfNotNull(id, partner?.id))
+        }
+        onDone()
+    }
+
+    /**
+     * Changes this entry's time, and client/project on it and its IN/OUT partner.
+     * [onResult] gets null on success or an error message.
+     */
+    fun editEntry(id: Long, time: String, clientId: Long?, projectId: Long?, onResult: (String?) -> Unit) =
+        viewModelScope.launch {
+            val entry = dao.getEntry(id)
+            if (entry == null) {
+                onResult("Entry not found")
+                return@launch
+            }
+            val list = dao.entriesOfDay(entry.day)
+            val i = list.indexOfFirst { it.id == id }
+
+            if (time != entry.time) {
+                val newTime = LocalTime.parse(time)
+                val prev = list.getOrNull(i - 1)?.time
+                val next = list.getOrNull(i + 1)?.time
+                if ((prev != null && !newTime.isAfter(LocalTime.parse(prev))) ||
+                    (next != null && !newTime.isBefore(LocalTime.parse(next)))
+                ) {
+                    onResult("Time must be between ${prev ?: "00:00:00"} and ${next ?: "23:59:59"}")
+                    return@launch
+                }
+                if (entry.day == LocalDate.now().toString() && newTime.isAfter(LocalTime.now())) {
+                    onResult("Time can't be in the future")
+                    return@launch
+                }
+                dao.setTime(id, time)
+            }
+            val partner = partnerOf(list, id)
+            dao.setClientProject(listOfNotNull(id, partner?.id), clientId, projectId)
+            onResult(null)
+        }
 
     fun deleteToday() = viewModelScope.launch { dao.deleteDay(LocalDate.now().toString()) }
     fun deleteAll() = viewModelScope.launch { dao.deleteAll() }

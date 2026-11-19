@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
 import com.example.workhours.UiState
+import com.example.workhours.data.EntryView
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -165,6 +166,7 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onDay: (LocalDate) -> U
 @Composable
 fun DayScreen(vm: MainViewModel, day: LocalDate, onBack: () -> Unit) {
     val state by remember(day) { vm.dayState(day) }.collectAsStateWithLifecycle(initialValue = UiState())
+    var editing by remember { mutableStateOf<EntryView?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -189,8 +191,9 @@ fun DayScreen(vm: MainViewModel, day: LocalDate, onBack: () -> Unit) {
                 Text("No entries for this day", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                items(state.entries, key = { it.id }) { EntryRow(it) }
+                items(state.entries, key = { it.id }) { e -> EntryRow(e, onClick = { editing = e }) }
             }
+            editing?.let { EntryEditor(it, state.entries, vm) { editing = null } }
         }
     }
 }
