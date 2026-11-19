@@ -7,7 +7,7 @@ import java.time.LocalTime
  * Sums IN→OUT pairs. A trailing IN with no OUT counts up to [openUntil]
  * (pass "now" for today, null for past days where it is ignored).
  */
-fun workedSeconds(entries: List<Entry>, openUntil: LocalTime?): Long {
+fun workedSeconds(entries: List<EntryView>, openUntil: LocalTime?): Long {
     var total = 0L
     var start: LocalTime? = null
     for (e in entries) {
