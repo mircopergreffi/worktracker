@@ -21,7 +21,9 @@ data class DaySummary(val day: LocalDate, val seconds: Long, val count: Int)
 data class UiState(
     val entries: List<EntryView> = emptyList(),
     val workedSeconds: Long = 0,
-    val isIn: Boolean = false
+    val isIn: Boolean = false,
+    /** Unfiltered entries of the day (dayState only), used to find IN/OUT partners. */
+    val allEntries: List<EntryView> = emptyList()
 )
 
 data class HistoryFilter(
@@ -182,13 +184,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Entries and worked time for any single day. */
-    fun dayState(day: LocalDate): Flow<UiState> =
-        dao.observeDay(day.toString()).combine(clock) { entries, now ->
+    /** Entries and worked time for one day, optionally only for a client and/or project. */
+    fun dayState(day: LocalDate, clientId: Long? = null, projectId: Long? = null): Flow<UiState> =
+        dao.observeDay(day.toString()).combine(clock) { all, now ->
+            val entries = all.filter {
+                (clientId == null || it.clientId == clientId) && (projectId == null || it.projectId == projectId)
+            }
             UiState(
                 entries = entries,
                 workedSeconds = workedSeconds(entries, if (day == now.toLocalDate()) now.toLocalTime() else null),
-                isIn = entries.lastOrNull()?.inOut == "IN"
+                isIn = entries.lastOrNull()?.inOut == "IN",
+                allEntries = all
             )
         }
 

@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
 import com.example.workhours.UiState
+import com.example.workhours.data.Client
 import com.example.workhours.data.EntryView
+import com.example.workhours.data.Project
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -29,6 +31,54 @@ import java.time.format.DateTimeFormatter
 
 private val shortDate = DateTimeFormatter.ofPattern("EEE d MMM")
 private val longDate = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy")
+
+/**
+ * "All clients" / "All projects" filter dropdowns. Without a client, every project is listed
+ * as "Project · Client"; picking a project reports it and the caller also sets its client.
+ */
+@Composable
+fun FilterSelectors(
+    clients: List<Client>,
+    projects: List<Project>,
+    clientId: Long?,
+    projectId: Long?,
+    onClient: (Long?) -> Unit,
+    onProject: (Long?) -> Unit
+) {
+    val client = clients.find { it.id == clientId }
+    val project = projects.find { it.id == projectId }
+    val clientsById = clients.associateBy { it.id }
+
+    val clientOptions = listOf(Option(-1, "All clients", null)) +
+        clients.map { Option(it.id, it.name, it.color) }
+    val projectOptions = listOf(Option(-1, "All projects", null)) + projects
+        .filter { client == null || it.clientId == client.id }
+        .map {
+            if (client == null) Option(it.id, "${it.name} · ${clientsById[it.clientId]?.name ?: "?"}", clientsById[it.clientId]?.color)
+            else Option(it.id, it.name, null)
+        }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Selector(
+            label = "All clients",
+            selected = client?.let { Option(it.id, it.name, it.color) },
+            options = clientOptions,
+            enabled = true,
+            addLabel = null,
+            onSelect = { id -> onClient(if (id >= 0) id else null) },
+            modifier = Modifier.weight(1f)
+        )
+        Selector(
+            label = "All projects",
+            selected = project?.let { Option(it.id, it.name, null) },
+            options = projectOptions,
+            enabled = true,
+            addLabel = null,
+            onSelect = { id -> onProject(if (id >= 0) id else null) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,20 +91,6 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onDay: (LocalDate) -> U
 
     val total = days.sumOf { it.seconds }
     val max = maxOf(days.maxOfOrNull { it.seconds } ?: 0L, 1L)
-
-    val client = clients.find { it.id == filter.clientId }
-    val project = projects.find { it.id == filter.projectId }
-    val clientsById = clients.associateBy { it.id }
-
-    val clientOptions = listOf(Option(-1, "All clients", null)) +
-        clients.map { Option(it.id, it.name, it.color) }
-    // Without a client, every project is listed with its client name next to it.
-    val projectOptions = listOf(Option(-1, "All projects", null)) + projects
-        .filter { client == null || it.clientId == client.id }
-        .map {
-            if (client == null) Option(it.id, "${it.name} · ${clientsById[it.clientId]?.name ?: "?"}", clientsById[it.clientId]?.color)
-            else Option(it.id, it.name, null)
-        }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -75,26 +111,14 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onDay: (LocalDate) -> U
             Spacer(Modifier.height(8.dp))
             PeriodSelector(value = filter.period, onChange = vm::setPeriod, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Selector(
-                    label = "All clients",
-                    selected = client?.let { Option(it.id, it.name, it.color) },
-                    options = clientOptions,
-                    enabled = true,
-                    addLabel = null,
-                    onSelect = { id -> vm.setFilterClient(if (id >= 0) id else null) },
-                    modifier = Modifier.weight(1f)
-                )
-                Selector(
-                    label = "All projects",
-                    selected = project?.let { Option(it.id, it.name, null) },
-                    options = projectOptions,
-                    enabled = true,
-                    addLabel = null,
-                    onSelect = { id -> vm.setFilterProject(if (id >= 0) id else null) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            FilterSelectors(
+                clients = clients,
+                projects = projects,
+                clientId = filter.clientId,
+                projectId = filter.projectId,
+                onClient = vm::setFilterClient,
+                onProject = vm::setFilterProject
+            )
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Hide empty days", Modifier.weight(1f))
@@ -165,7 +189,16 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onDay: (LocalDate) -> U
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayScreen(vm: MainViewModel, day: LocalDate, onBack: () -> Unit) {
-    val state by remember(day) { vm.dayState(day) }.collectAsStateWithLifecycle(initialValue = UiState())
+    val clients by vm.clients.collectAsStateWithLifecycle()
+    val projects by vm.projects.collectAsStateWithLifecycle()
+
+    // Starts from the History filter so the total matches the row that was tapped; then independent.
+    var clientId by remember(day) { mutableStateOf(vm.historyFilter.value.clientId) }
+    var projectId by remember(day) { mutableStateOf(vm.historyFilter.value.projectId) }
+    val filtered = clientId != null || projectId != null
+
+    val state by remember(day, clientId, projectId) { vm.dayState(day, clientId, projectId) }
+        .collectAsStateWithLifecycle(initialValue = UiState())
     var editing by remember { mutableStateOf<EntryView?>(null) }
 
     Scaffold(
@@ -183,17 +216,36 @@ fun DayScreen(vm: MainViewModel, day: LocalDate, onBack: () -> Unit) {
         }
     ) { padding ->
         Column(Modifier.padding(padding).padding(horizontal = 24.dp).fillMaxSize()) {
+            Spacer(Modifier.height(8.dp))
+            FilterSelectors(
+                clients = clients,
+                projects = projects,
+                clientId = clientId,
+                projectId = projectId,
+                onClient = { id -> clientId = id; projectId = null },
+                onProject = { pid ->
+                    projectId = pid
+                    if (pid != null) clientId = projects.find { it.id == pid }?.clientId ?: clientId
+                }
+            )
             Spacer(Modifier.height(16.dp))
-            Text("Worked", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
+            Text(
+                if (filtered) "Worked (selected client / project)" else "Worked",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                fontSize = 14.sp
+            )
             Text(formatHms(state.workedSeconds), fontSize = 48.sp, fontWeight = FontWeight.Light, fontFamily = FontFamily.Monospace)
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
             if (state.entries.isEmpty()) {
-                Text("No entries for this day", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Text(
+                    if (filtered) "No entries for this selection" else "No entries for this day",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(state.entries, key = { it.id }) { e -> EntryRow(e, onClick = { editing = e }) }
             }
-            editing?.let { EntryEditor(it, state.entries, vm) { editing = null } }
+            editing?.let { EntryEditor(it, state.allEntries, vm) { editing = null } }
         }
     }
 }
