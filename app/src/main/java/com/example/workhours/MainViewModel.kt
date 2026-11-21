@@ -74,6 +74,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _roundOut.value = r
     }
 
+    // ---------- worked-time notification ----------
+    private val _notifyEnabled = MutableStateFlow(prefs.getBoolean("notify_enabled", false))
+    private val _notifyMinutes = MutableStateFlow(prefs.getInt("notify_minutes", 8 * 60))
+    val notifyEnabled: StateFlow<Boolean> = _notifyEnabled
+    val notifyMinutes: StateFlow<Int> = _notifyMinutes
+
+    fun setNotifyEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("notify_enabled", enabled).apply()
+        _notifyEnabled.value = enabled
+    }
+
+    fun setNotifyMinutes(totalMinutes: Int) {
+        prefs.edit().putInt("notify_minutes", totalMinutes).apply()
+        _notifyMinutes.value = totalMinutes
+    }
+
     // ---------- clients / projects ----------
     val clients: StateFlow<List<Client>> =
         dao.observeClients().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -203,6 +219,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setFilterProject(id: Long?) = _filter.update { f ->
         val owner = id?.let { pid -> projects.value.find { it.id == pid }?.clientId } ?: f.clientId
         f.copy(clientId = owner, projectId = id)
+    }
+
+    init {
+        // Keeps the alarm in sync with the entries and the notification settings.
+        viewModelScope.launch {
+            combine(
+                workingDay.flatMapLatest { dao.observeDay(it.toString()) },
+                _notifyEnabled,
+                _notifyMinutes
+            ) { _, _, _ -> }.collect { ReminderScheduler.reschedule(getApplication<Application>()) }
+        }
     }
 
     /** One row per day of the selected period (newest first), for the selected client / project. */

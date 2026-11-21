@@ -10,7 +10,7 @@ data class Entry(
     @PrimaryKey(autoGenerate = true) override val id: Long = 0,
     val day: String,
     @ColumnInfo(name = "in_out") override val inOut: String,
-    val time: String,
+    override val time: String,
     @ColumnInfo(name = "client_id") val clientId: Long? = null,
     @ColumnInfo(name = "project_id") val projectId: Long? = null
 ) : Marked

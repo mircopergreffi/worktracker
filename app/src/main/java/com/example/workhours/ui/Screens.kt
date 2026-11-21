@@ -1,5 +1,11 @@
 package com.example.workhours.ui
 
+import android.Manifest
+import android.app.AlarmManager
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -8,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -217,6 +225,14 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
     val defaultPeriod by vm.defaultPeriod.collectAsStateWithLifecycle()
     val roundIn by vm.roundIn.collectAsStateWithLifecycle()
     val roundOut by vm.roundOut.collectAsStateWithLifecycle()
+    val notifyEnabled by vm.notifyEnabled.collectAsStateWithLifecycle()
+    val notifyMinutes by vm.notifyMinutes.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) {
+            Toast.makeText(context, "Notifications are blocked for this app in the system settings", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -238,6 +254,40 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
         ) {
             Text("Lists", fontWeight = FontWeight.Medium)
             OutlinedButton(onClick = onManage, Modifier.fillMaxWidth()) { Text("Clients & projects") }
+            Spacer(Modifier.height(12.dp))
+            Text("Notification", fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Notify when today's worked time is reached", Modifier.weight(1f))
+                Switch(
+                    checked = notifyEnabled,
+                    onCheckedChange = { on ->
+                        vm.setNotifyEnabled(on)
+                        if (on && Build.VERSION.SDK_INT >= 33) {
+                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                )
+            }
+            if (notifyEnabled) {
+                NotifyTimeFields(minutes = notifyMinutes, onChange = vm::setNotifyMinutes)
+                val exactAllowed = Build.VERSION.SDK_INT < 31 ||
+                    context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+                if (!exactAllowed) {
+                    Text(
+                        "Without exact alarms Android may delay the notification by a few minutes.",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        fontSize = 14.sp
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}"))
+                            )
+                        },
+                        Modifier.fillMaxWidth()
+                    ) { Text("Allow exact timing") }
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Text("Rounding", fontWeight = FontWeight.Medium)
             Text(
@@ -325,5 +375,37 @@ fun EntryRow(e: EntryView, onClick: (() -> Unit)? = null) {
         val secs = parseSeconds(e.time)
         Text(formatSeconds(secs % DAY_SECONDS), fontFamily = FontFamily.Monospace, fontSize = 14.sp)
         if (secs >= DAY_SECONDS) Text("+1", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** Hours and minutes of worked time after which the notification is shown. Saved when valid (1 min to 23:59). */
+@Composable
+private fun NotifyTimeFields(minutes: Int, onChange: (Int) -> Unit) {
+    var h by remember { mutableStateOf((minutes / 60).toString()) }
+    var m by remember { mutableStateOf((minutes % 60).toString()) }
+
+    fun push(newH: String, newM: String) {
+        val hh = newH.toIntOrNull()
+        val mm = newM.toIntOrNull()
+        if (hh != null && mm != null && hh in 0..23 && mm in 0..59 && hh * 60 + mm > 0) onChange(hh * 60 + mm)
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedTextField(
+            value = h,
+            onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) { h = it; push(it, m) } },
+            label = { Text("Hours") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f)
+        )
+        OutlinedTextField(
+            value = m,
+            onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) { m = it; push(h, it) } },
+            label = { Text("Minutes") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.weight(1f)
+        )
     }
 }

@@ -40,7 +40,7 @@ fun nowOn(day: LocalDate, now: LocalDateTime): Int? {
  * Sums IN→OUT pairs. A trailing IN with no OUT counts up to [openUntil]
  * (seconds from the start of that day, see [nowOn]); null ignores it.
  */
-fun workedSeconds(entries: List<EntryView>, openUntil: Int?): Long {
+fun workedSeconds(entries: List<Marked>, openUntil: Int?): Long {
     var total = 0L
     var start: Int? = null
     for (e in entries) {
@@ -70,6 +70,7 @@ fun deletesAlone(day: String, time: String, isOverallLast: Boolean, today: Local
 interface Marked {
     val id: Long
     val inOut: String
+    val time: String
 }
 
 /**

@@ -23,7 +23,7 @@ data class EntryView(
     override val id: Long,
     val day: String,
     @ColumnInfo(name = "in_out") override val inOut: String,
-    val time: String,
+    override val time: String,
     @ColumnInfo(name = "client_id") val clientId: Long?,
     @ColumnInfo(name = "project_id") val projectId: Long?,
     @ColumnInfo(name = "client_name") val clientName: String?,
