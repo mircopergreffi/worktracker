@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -210,6 +212,8 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) {
     var confirm by remember { mutableStateOf<String?>(null) }
     val defaultPeriod by vm.defaultPeriod.collectAsStateWithLifecycle()
+    val roundIn by vm.roundIn.collectAsStateWithLifecycle()
+    val roundOut by vm.roundOut.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -225,9 +229,23 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
             )
         }
     ) { padding ->
-        Column(Modifier.padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text("Lists", fontWeight = FontWeight.Medium)
             OutlinedButton(onClick = onManage, Modifier.fillMaxWidth()) { Text("Clients & projects") }
+            Spacer(Modifier.height(12.dp))
+            Text("Rounding", fontWeight = FontWeight.Medium)
+            Text(
+                "Applied to the time saved when you press the button.",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                fontSize = 14.sp
+            )
+            Text("IN button", fontSize = 14.sp)
+            RoundingSelector(value = roundIn, onChange = vm::setRoundIn)
+            Text("OUT button", fontSize = 14.sp)
+            RoundingSelector(value = roundOut, onChange = vm::setRoundOut)
             Spacer(Modifier.height(12.dp))
             Text("History", fontWeight = FontWeight.Medium)
             Text(

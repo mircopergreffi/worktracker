@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.workhours.HistoryPeriod
+import com.example.workhours.TimeRounding
 
 /** Colors a client can be given (ARGB ints). */
 val Palette: List<Int> = listOf(
@@ -168,6 +169,28 @@ fun PeriodSelector(value: HistoryPeriod, onChange: (HistoryPeriod) -> Unit, modi
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             HistoryPeriod.entries.forEach { p ->
                 DropdownMenuItem(text = { Text(p.label) }, onClick = { open = false; onChange(p) })
+            }
+        }
+    }
+}
+
+/** Dropdown to choose how a button press time is rounded. */
+@Composable
+fun RoundingSelector(value: TimeRounding, onChange: (TimeRounding) -> Unit, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedButton(
+            onClick = { open = true },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp)
+        ) {
+            Text(value.label, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Start)
+            Text("▾")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            TimeRounding.entries.forEach { r ->
+                DropdownMenuItem(text = { Text(r.label) }, onClick = { open = false; onChange(r) })
             }
         }
     }

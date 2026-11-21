@@ -52,6 +52,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _dark.value = value
     }
 
+    // ---------- rounding of IN / OUT times ----------
+    private fun loadRounding(key: String): TimeRounding =
+        runCatching { TimeRounding.valueOf(prefs.getString(key, "") ?: "") }.getOrDefault(TimeRounding.NONE)
+
+    private val _roundIn = MutableStateFlow(loadRounding("round_in"))
+    private val _roundOut = MutableStateFlow(loadRounding("round_out"))
+    val roundIn: StateFlow<TimeRounding> = _roundIn
+    val roundOut: StateFlow<TimeRounding> = _roundOut
+
+    fun setRoundIn(r: TimeRounding) {
+        prefs.edit().putString("round_in", r.name).apply()
+        _roundIn.value = r
+    }
+
+    fun setRoundOut(r: TimeRounding) {
+        prefs.edit().putString("round_out", r.name).apply()
+        _roundOut.value = r
+    }
+
     // ---------- clients / projects ----------
     val clients: StateFlow<List<Client>> =
         dao.observeClients().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -200,12 +219,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- entries ----------
     private suspend fun insertEntry(inOut: String, clientId: Long?, projectId: Long?) {
-        val now = LocalDateTime.now()
+        val rounding = if (inOut == "IN") _roundIn.value else _roundOut.value
+        var at = rounding.apply(LocalDateTime.now())
+
+        // Rounding must never put an entry before the previous one of the same day,
+        // otherwise the IN/OUT pairs would get out of order.
+        val last = dao.lastEntry()
+        if (last != null && last.day == at.toLocalDate().toString()) {
+            val lastTime = LocalTime.parse(last.time)
+            if (at.toLocalTime().isBefore(lastTime)) at = at.toLocalDate().atTime(lastTime)
+        }
+
         dao.insert(
             Entry(
-                day = now.toLocalDate().toString(),
+                day = at.toLocalDate().toString(),
                 inOut = inOut,
-                time = now.format(timeFmt),
+                time = at.format(timeFmt),
                 clientId = clientId,
                 projectId = projectId
             )
