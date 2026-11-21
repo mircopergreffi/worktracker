@@ -222,11 +222,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         insertEntry("OUT", last?.clientId, last?.projectId)
     }
 
-    /** Deletes the entry together with its IN/OUT partner. Deleting a running IN stops the timer. */
+    /**
+     * Deletes the entry together with its IN/OUT partner. Exception: the last entry of today is deleted
+     * alone, so removing a last OUT restarts the live timer and removing a running IN stops it.
+     */
     fun deleteEntry(id: Long, onDone: () -> Unit = {}) = viewModelScope.launch {
         val entry = dao.getEntry(id)
         if (entry != null) {
-            val partner = partnerOf(dao.entriesOfDay(entry.day), id)
+            val list = dao.entriesOfDay(entry.day)
+            // The last entry of today is deleted alone: a last OUT leaves its IN open, so the live timer restarts.
+            val isLastToday = entry.day == LocalDate.now().toString() && list.lastOrNull()?.id == id
+            val partner = if (isLastToday) null else partnerOf(list, id)
             dao.deleteEntries(listOfNotNull(id, partner?.id))
         }
         onDone()

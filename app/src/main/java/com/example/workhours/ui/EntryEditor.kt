@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
 import com.example.workhours.data.EntryView
 import com.example.workhours.data.partnerOf
+import java.time.LocalDate
 import java.time.LocalTime
 
 /**
@@ -52,6 +53,18 @@ fun EntryEditor(entry: EntryView, entries: List<EntryView>, vm: MainViewModel, o
     // Old entries may have neither; otherwise both must be set.
     val selectionOk = (client == null && project == null) || (client != null && project != null)
 
+    // The last entry of today is deleted on its own (see MainViewModel.deleteEntry).
+    val isLastToday = entry.day == LocalDate.now().toString() && entries.lastOrNull()?.id == entry.id
+    val infoText = buildString {
+        if (partner != null) append("Client and project also change on the paired ${partner.inOut} (${partner.time}). ")
+        when {
+            isLastToday && entry.inOut == "OUT" -> append("Deleting this last OUT keeps the IN and restarts the live timer.")
+            isLastToday -> append("The timer is running. Deleting this IN stops it.")
+            partner != null -> append("Deleting removes both.")
+            entry.inOut == "OUT" -> append("This OUT has no matching IN.")
+        }
+    }
+
     if (!confirmDelete) {
         AlertDialog(
             onDismissRequest = onDismiss,
@@ -82,11 +95,7 @@ fun EntryEditor(entry: EntryView, entries: List<EntryView>, vm: MainViewModel, o
                         onSelect = { id -> projectId = id }
                     )
                     Text(
-                        if (partner != null)
-                            "Client and project also change on the paired ${partner.inOut} (${partner.time}). Deleting removes both."
-                        else if (entry.inOut == "IN")
-                            "This IN has no OUT yet: the timer is running."
-                        else "This OUT has no matching IN.",
+                        infoText,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 13.sp
                     )
@@ -122,8 +131,10 @@ fun EntryEditor(entry: EntryView, entries: List<EntryView>, vm: MainViewModel, o
             text = {
                 Text(
                     when {
+                        isLastToday && entry.inOut == "OUT" ->
+                            "The OUT will be deleted and the live timer will start again. The paired IN stays."
+                        isLastToday -> "The running timer will stop."
                         partner != null -> "The paired ${partner.inOut} at ${partner.time} will be deleted too."
-                        entry.inOut == "IN" -> "The running timer will stop."
                         else -> "This entry will be deleted."
                     }
                 )
