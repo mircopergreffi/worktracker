@@ -16,9 +16,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
 import com.example.workhours.data.EntryView
+import com.example.workhours.data.deletesAlone
+import com.example.workhours.data.parseSeconds
 import com.example.workhours.data.partnerOf
+import com.example.workhours.data.prettyTime
 import java.time.LocalDate
-import java.time.LocalTime
 
 /**
  * Edit / delete dialog for one entry. [entries] is that day's sorted list, used to find the
@@ -31,10 +33,11 @@ fun EntryEditor(entry: EntryView, entries: List<EntryView>, vm: MainViewModel, o
     val projects by vm.projects.collectAsStateWithLifecycle()
     val partner = remember(entries, entry.id) { partnerOf(entries, entry.id) }
 
-    val t = remember(entry.id) { LocalTime.parse(entry.time) }
-    var h by remember(entry.id) { mutableStateOf("%02d".format(t.hour)) }
-    var m by remember(entry.id) { mutableStateOf("%02d".format(t.minute)) }
-    var s by remember(entry.id) { mutableStateOf("%02d".format(t.second)) }
+    val secs0 = remember(entry.id) { parseSeconds(entry.time) }
+    var h by remember(entry.id) { mutableStateOf("%02d".format(secs0 / 3600)) }
+    var m by remember(entry.id) { mutableStateOf("%02d".format(secs0 % 3600 / 60)) }
+    var s by remember(entry.id) { mutableStateOf("%02d".format(secs0 % 60)) }
+    val lastId by vm.lastEntryId.collectAsStateWithLifecycle()
     var clientId by remember(entry.id) { mutableStateOf(entry.clientId) }
     var projectId by remember(entry.id) { mutableStateOf(entry.projectId) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -43,20 +46,23 @@ fun EntryEditor(entry: EntryView, entries: List<EntryView>, vm: MainViewModel, o
     val clientProjects = projects.filter { it.clientId == client?.id }
     val project = clientProjects.find { it.id == projectId }
 
+    // An OUT after midnight is stored on the IN's day as hours 24-47.
+    val maxHour = if (entry.inOut == "OUT") 47 else 23
     val hh = h.toIntOrNull()
     val mm = m.toIntOrNull()
     val ss = s.toIntOrNull()
     val time: String? =
-        if (hh != null && mm != null && ss != null && hh in 0..23 && mm in 0..59 && ss in 0..59)
+        if (hh != null && mm != null && ss != null && hh in 0..maxHour && mm in 0..59 && ss in 0..59)
             "%02d:%02d:%02d".format(hh, mm, ss)
         else null
     // Old entries may have neither; otherwise both must be set.
     val selectionOk = (client == null && project == null) || (client != null && project != null)
 
-    // The last entry of today is deleted on its own (see MainViewModel.deleteEntry).
-    val isLastToday = entry.day == LocalDate.now().toString() && entries.lastOrNull()?.id == entry.id
+    // The very last entry is deleted on its own (see MainViewModel.deleteEntry).
+    val isLastToday = deletesAlone(entry.day, entry.time, lastId == entry.id, LocalDate.now())
     val infoText = buildString {
-        if (partner != null) append("Client and project also change on the paired ${partner.inOut} (${partner.time}). ")
+        if (entry.inOut == "OUT") append("Hours 24-47 mean the next day (+1). ")
+        if (partner != null) append("Client and project also change on the paired ${partner.inOut} (${prettyTime(partner.time)}). ")
         when {
             isLastToday && entry.inOut == "OUT" -> append("Deleting this last OUT keeps the IN and restarts the live timer.")
             isLastToday -> append("The timer is running. Deleting this IN stops it.")
@@ -134,7 +140,7 @@ fun EntryEditor(entry: EntryView, entries: List<EntryView>, vm: MainViewModel, o
                         isLastToday && entry.inOut == "OUT" ->
                             "The OUT will be deleted and the live timer will start again. The paired IN stays."
                         isLastToday -> "The running timer will stop."
-                        partner != null -> "The paired ${partner.inOut} at ${partner.time} will be deleted too."
+                        partner != null -> "The paired ${partner.inOut} at ${prettyTime(partner.time)} will be deleted too."
                         else -> "This entry will be deleted."
                     }
                 )

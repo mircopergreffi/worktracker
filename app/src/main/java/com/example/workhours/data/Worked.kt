@@ -1,26 +1,69 @@
 package com.example.workhours.data
 
-import java.time.Duration
-import java.time.LocalTime
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
+
+const val DAY_SECONDS = 86_400
+
+/**
+ * Entry times are stored as "HH:mm:ss" counted from the start of the entry's day.
+ * An OUT that closes a session started the day before is stored on the IN's day with
+ * hours 24 and up (01:30 the next morning becomes "25:30:00"), so a shift through
+ * midnight stays one IN/OUT pair on one day, and sorting by time still works.
+ */
+fun parseSeconds(time: String): Int {
+    val p = time.split(":")
+    return p[0].toInt() * 3600 + p[1].toInt() * 60 + p[2].toInt()
+}
+
+fun formatSeconds(sec: Int): String = "%02d:%02d:%02d".format(sec / 3600, sec % 3600 / 60, sec % 60)
+
+/** Clock time for display: "25:30:00" becomes "01:30:00 (+1)". */
+fun prettyTime(time: String): String {
+    val s = parseSeconds(time)
+    return if (s >= DAY_SECONDS) formatSeconds(s - DAY_SECONDS) + " (+1)" else formatSeconds(s)
+}
+
+fun absSeconds(day: LocalDate, secs: Int): Long = day.toEpochDay() * DAY_SECONDS + secs
+
+/**
+ * "Now" in seconds counted from the start of [day]. Null when [day] is more than one day back,
+ * so a forgotten OUT from days ago is never counted as still running.
+ */
+fun nowOn(day: LocalDate, now: LocalDateTime): Int? {
+    val diff = ChronoUnit.DAYS.between(day, now.toLocalDate())
+    return if (diff in 0..1) (diff * DAY_SECONDS).toInt() + now.toLocalTime().toSecondOfDay() else null
+}
 
 /**
  * Sums IN→OUT pairs. A trailing IN with no OUT counts up to [openUntil]
- * (pass "now" for today, null for past days where it is ignored).
+ * (seconds from the start of that day, see [nowOn]); null ignores it.
  */
-fun workedSeconds(entries: List<EntryView>, openUntil: LocalTime?): Long {
+fun workedSeconds(entries: List<EntryView>, openUntil: Int?): Long {
     var total = 0L
-    var start: LocalTime? = null
+    var start: Int? = null
     for (e in entries) {
-        val t = LocalTime.parse(e.time)
+        val t = parseSeconds(e.time)
         if (e.inOut == "IN") {
             if (start == null) start = t
         } else if (start != null) {
-            total += Duration.between(start, t).seconds
+            total += maxOf(0, t - start)
             start = null
         }
     }
-    if (start != null && openUntil != null) total += maxOf(0, Duration.between(start, openUntil).seconds)
+    if (start != null && openUntil != null) total += maxOf(0, openUntil - start)
     return total
+}
+
+/**
+ * Deleting the very last entry removes only that entry when it is from today, or an OUT that
+ * ended after midnight of yesterday's session: the IN stays open and the live timer runs again.
+ */
+fun deletesAlone(day: String, time: String, isOverallLast: Boolean, today: LocalDate): Boolean {
+    if (!isOverallLast) return false
+    val d = LocalDate.parse(day)
+    return d == today || (d == today.minusDays(1) && parseSeconds(time) >= DAY_SECONDS)
 }
 
 /** Anything that is an IN or OUT row. */

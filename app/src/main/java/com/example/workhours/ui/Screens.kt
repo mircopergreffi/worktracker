@@ -29,7 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
+import com.example.workhours.data.DAY_SECONDS
 import com.example.workhours.data.EntryView
+import com.example.workhours.data.formatSeconds
+import com.example.workhours.data.parseSeconds
 import java.time.LocalDate
 
 @Composable
@@ -121,7 +124,7 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
             Modifier.padding(padding).padding(horizontal = 24.dp).fillMaxSize()
         ) {
             Spacer(Modifier.height(24.dp))
-            Text("Worked today", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
+            Text(if (state.carriedOver) "Worked (session since yesterday)" else "Worked today", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
             Text(
                 formatHms(state.workedSeconds),
                 fontSize = 56.sp,
@@ -173,7 +176,7 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
                 ) { Text("OUT", fontSize = 18.sp, fontWeight = FontWeight.Medium) }
             }
             Spacer(Modifier.height(32.dp))
-            Text("Today", fontWeight = FontWeight.Medium, fontSize = 16.sp)
+            Text(if (state.carriedOver) "Yesterday" else "Today", fontWeight = FontWeight.Medium, fontSize = 16.sp)
             Spacer(Modifier.height(8.dp))
             if (state.entries.isEmpty()) {
                 Text("No entries yet", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
@@ -319,6 +322,8 @@ fun EntryRow(e: EntryView, onClick: (() -> Unit)? = null) {
             color = if (e.inOut == "IN") MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.secondary
         )
-        Text(e.time, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+        val secs = parseSeconds(e.time)
+        Text(formatSeconds(secs % DAY_SECONDS), fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+        if (secs >= DAY_SECONDS) Text("+1", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
     }
 }

@@ -35,6 +35,9 @@ interface EntryDao {
     @Query("SELECT * FROM entries ORDER BY day DESC, time DESC, id DESC LIMIT 1")
     suspend fun lastEntry(): Entry?
 
+    @Query("SELECT * FROM entries ORDER BY day DESC, time DESC, id DESC LIMIT 1")
+    fun observeLast(): Flow<Entry?>
+
     @Insert
     suspend fun insert(entry: Entry)
 

@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
 
 data class DaySummary(val day: LocalDate, val seconds: Long, val count: Int)
@@ -22,6 +23,8 @@ data class UiState(
     val entries: List<EntryView> = emptyList(),
     val workedSeconds: Long = 0,
     val isIn: Boolean = false,
+    /** True when the main screen shows yesterday's session that is still running past midnight. */
+    val carriedOver: Boolean = false,
     /** Unfiltered entries of the day (dayState only), used to find IN/OUT partners. */
     val allEntries: List<EntryView> = emptyList()
 )
@@ -143,16 +146,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    val state: StateFlow<UiState> = clock
-        .map { it.toLocalDate().toString() }
+    /** The overall last entry's id; the editor uses it to know if an entry is the very last one. */
+    val lastEntryId: StateFlow<Long?> = dao.observeLast().map { it?.id }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /**
+     * Day shown on the main screen: today, or yesterday while a session started yesterday
+     * (an IN with no OUT yet) is still running through midnight.
+     */
+    private val workingDay: Flow<LocalDate> = clock
+        .map { it.toLocalDate() }
         .distinctUntilChanged()
-        .flatMapLatest { dao.observeDay(it) }
-        .combine(clock) { entries, now ->
-            UiState(
-                entries = entries,
-                workedSeconds = workedSeconds(entries, now.toLocalTime()),
-                isIn = entries.lastOrNull()?.inOut == "IN"
-            )
+        .flatMapLatest { today ->
+            dao.observeLast().map { last ->
+                if (last != null && last.inOut == "IN" && last.day == today.minusDays(1).toString()) today.minusDays(1)
+                else today
+            }
+        }
+        .distinctUntilChanged()
+
+    val state: StateFlow<UiState> = workingDay
+        .flatMapLatest { day ->
+            dao.observeDay(day.toString()).combine(clock) { entries, now ->
+                UiState(
+                    entries = entries,
+                    workedSeconds = workedSeconds(entries, nowOn(day, now)),
+                    isIn = entries.lastOrNull()?.inOut == "IN",
+                    carriedOver = day != now.toLocalDate()
+                )
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())
 
@@ -194,7 +216,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         generateSequence(to) { d -> d.minusDays(1).takeIf { !it.isBefore(from) } }
                             .map { d ->
                                 val list = byDay[d.toString()].orEmpty()
-                                DaySummary(d, workedSeconds(list, if (d == today) now.toLocalTime() else null), list.size)
+                                DaySummary(d, workedSeconds(list, nowOn(d, now)), list.size)
                             }
                             .filter { !f.hideEmpty || it.count > 0 }
                             .toList()
@@ -211,30 +233,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             UiState(
                 entries = entries,
-                workedSeconds = workedSeconds(entries, if (day == now.toLocalDate()) now.toLocalTime() else null),
+                workedSeconds = workedSeconds(entries, nowOn(day, now)),
                 isIn = entries.lastOrNull()?.inOut == "IN",
                 allEntries = all
             )
         }
 
     // ---------- entries ----------
+    /**
+     * Saves an IN/OUT with the (rounded) current time. It is never earlier than the previous entry.
+     * An OUT that closes a session started the day before is stored on the IN's day with hours 24+
+     * (01:30 becomes 25:30:00), so working through midnight stays one pair on one day.
+     */
     private suspend fun insertEntry(inOut: String, clientId: Long?, projectId: Long?) {
+        val now = LocalDateTime.now()
         val rounding = if (inOut == "IN") _roundIn.value else _roundOut.value
-        var at = rounding.apply(LocalDateTime.now())
+        var at = rounding.apply(now)
+        // Rounding never pushes an IN into the next day.
+        if (inOut == "IN" && at.toLocalDate() != now.toLocalDate()) at = now.toLocalDate().atTime(23, 59, 59)
 
-        // Rounding must never put an entry before the previous one of the same day,
-        // otherwise the IN/OUT pairs would get out of order.
+        var abs = absSeconds(at.toLocalDate(), at.toLocalTime().toSecondOfDay())
         val last = dao.lastEntry()
-        if (last != null && last.day == at.toLocalDate().toString()) {
-            val lastTime = LocalTime.parse(last.time)
-            if (at.toLocalTime().isBefore(lastTime)) at = at.toLocalDate().atTime(lastTime)
+        if (last != null) abs = maxOf(abs, absSeconds(LocalDate.parse(last.day), parseSeconds(last.time)))
+
+        var day = LocalDate.ofEpochDay(abs / DAY_SECONDS)
+        var secs = (abs % DAY_SECONDS).toInt()
+        if (inOut == "OUT" && last != null && last.inOut == "IN") {
+            val inDay = LocalDate.parse(last.day)
+            if (ChronoUnit.DAYS.between(inDay, day) == 1L) {
+                day = inDay
+                secs += DAY_SECONDS
+            }
         }
 
         dao.insert(
             Entry(
-                day = at.toLocalDate().toString(),
+                day = day.toString(),
                 inOut = inOut,
-                time = at.format(timeFmt),
+                time = formatSeconds(secs),
                 clientId = clientId,
                 projectId = projectId
             )
@@ -259,9 +295,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val entry = dao.getEntry(id)
         if (entry != null) {
             val list = dao.entriesOfDay(entry.day)
-            // The last entry of today is deleted alone: a last OUT leaves its IN open, so the live timer restarts.
-            val isLastToday = entry.day == LocalDate.now().toString() && list.lastOrNull()?.id == id
-            val partner = if (isLastToday) null else partnerOf(list, id)
+            // The very last entry is deleted alone: a last OUT leaves its IN open, so the live timer restarts.
+            val alone = deletesAlone(entry.day, entry.time, dao.lastEntry()?.id == id, LocalDate.now())
+            val partner = if (alone) null else partnerOf(list, id)
             dao.deleteEntries(listOfNotNull(id, partner?.id))
         }
         onDone()
@@ -282,16 +318,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val i = list.indexOfFirst { it.id == id }
 
             if (time != entry.time) {
-                val newTime = LocalTime.parse(time)
-                val prev = list.getOrNull(i - 1)?.time
-                val next = list.getOrNull(i + 1)?.time
-                if ((prev != null && !newTime.isAfter(LocalTime.parse(prev))) ||
-                    (next != null && !newTime.isBefore(LocalTime.parse(next)))
-                ) {
-                    onResult("Time must be between ${prev ?: "00:00:00"} and ${next ?: "23:59:59"}")
+                val newSecs = parseSeconds(time)
+                val maxSecs = if (entry.inOut == "IN") DAY_SECONDS else 2 * DAY_SECONDS
+                if (newSecs >= maxSecs) {
+                    onResult("Time out of range")
                     return@launch
                 }
-                if (entry.day == LocalDate.now().toString() && newTime.isAfter(LocalTime.now())) {
+                val prev = list.getOrNull(i - 1)?.time
+                val next = list.getOrNull(i + 1)?.time
+                if ((prev != null && newSecs <= parseSeconds(prev)) || (next != null && newSecs >= parseSeconds(next))) {
+                    val lo = prev?.let { prettyTime(it) } ?: "00:00:00"
+                    val hi = next?.let { prettyTime(it) } ?: if (entry.inOut == "IN") "23:59:59" else "23:59:59 (+1)"
+                    onResult("Time must be between $lo and $hi")
+                    return@launch
+                }
+                val now = LocalDateTime.now()
+                if (absSeconds(LocalDate.parse(entry.day), newSecs) > absSeconds(now.toLocalDate(), now.toLocalTime().toSecondOfDay())) {
                     onResult("Time can't be in the future")
                     return@launch
                 }

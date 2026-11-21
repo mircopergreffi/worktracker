@@ -17,7 +17,7 @@ enum class TimeRounding(val label: String, private val stepSeconds: Int, private
     HOUR_UP("Round 1 hour up", 60 * 60, RoundMode.UP),
     HOUR_DOWN("Round 1 hour down", 60 * 60, RoundMode.DOWN);
 
-    /** Rounded time on the same day; rounding past midnight stops at 23:59:59. */
+    /** Rounded time. Rounding up near midnight rolls over into the next day (the caller decides what to do). */
     fun apply(t: LocalDateTime): LocalDateTime {
         if (mode == RoundMode.NONE) return t
         val secs = t.toLocalTime().toSecondOfDay()
@@ -26,8 +26,6 @@ enum class TimeRounding(val label: String, private val stepSeconds: Int, private
             RoundMode.DOWN -> secs / stepSeconds * stepSeconds
             else -> (secs + stepSeconds / 2) / stepSeconds * stepSeconds
         }
-        val day = t.toLocalDate()
-        return if (rounded >= 24 * 3600) day.atTime(23, 59, 59)
-        else day.atStartOfDay().plusSeconds(rounded.toLong())
+        return t.toLocalDate().atStartOfDay().plusSeconds(rounded.toLong())
     }
 }
