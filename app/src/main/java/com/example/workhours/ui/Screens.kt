@@ -228,6 +228,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
     val notifyEnabled by vm.notifyEnabled.collectAsStateWithLifecycle()
     val notifyMinutes by vm.notifyMinutes.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "" }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) {
             Toast.makeText(context, "Notifications are blocked for this app in the system settings", Toast.LENGTH_LONG).show()
@@ -311,6 +312,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
             Text("Data", fontWeight = FontWeight.Medium)
             OutlinedButton(onClick = { confirm = "today" }, Modifier.fillMaxWidth()) { Text("Delete today's entries") }
             OutlinedButton(onClick = { confirm = "all" }, Modifier.fillMaxWidth()) { Text("Delete all entries") }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "Version $appVersion",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                fontSize = 14.sp
+            )
         }
     }
 
