@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="740" viewBox="0 0 360 740" font-family="Roboto, 'Helvetica Neue', Arial, sans-serif">
+<rect x="4" y="4" width="352" height="732" rx="36" fill="#FAFAF8" stroke="#C9CBC6" stroke-width="3"/>
+<text x="30" y="34" font-size="12" fill="#1B1C1B">9:41</text>
+<text x="28" y="80" font-size="22" fill="#1B1C1B" font-weight="500" text-anchor="start">Work Hours</text>
+<circle cx="328" cy="66" r="2.5" fill="#1B1C1B"/>
+<circle cx="328" cy="74" r="2.5" fill="#1B1C1B"/>
+<circle cx="328" cy="82" r="2.5" fill="#1B1C1B"/>
+<text x="28" y="134" font-size="13" fill="#6F716E" font-weight="400" text-anchor="start">Worked (session since yesterday)</text>
+<text x="28" y="190" font-size="52" fill="#1B1C1B" font-weight="300" text-anchor="start" font-family="'Roboto Mono', Menlo, Consolas, monospace">07:00:00</text>
+<rect x="24" y="386" width="312" height="44" rx="12" fill="#EDEEEA"/>
+<circle cx="42" cy="408" r="5" fill="#3B82F6"/>
+<text x="54" y="413" font-size="13" fill="#1B1C1B" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="413" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="413" font-size="13" fill="#1F6F5C" font-weight="700" text-anchor="start">IN</text>
+<text x="324" y="413" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">22:00:00</text>
+<rect x="24" y="436" width="312" height="44" rx="12" fill="#EDEEEA"/>
+<circle cx="42" cy="458" r="5" fill="#3B82F6"/>
+<text x="54" y="463" font-size="13" fill="#1B1C1B" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="463" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="463" font-size="13" fill="#B3472F" font-weight="700" text-anchor="start">OUT</text>
+<text x="306" y="463" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">01:30:00</text>
+<text x="311" y="463" font-size="10" fill="#1F6F5C" font-weight="600" text-anchor="start">+1</text>
+<rect x="8" y="8" width="344" height="724" rx="32" fill="#000000" opacity="0.4"/>
+<rect x="24" y="150" width="312" height="470" rx="24" fill="#F6F6F2"/>
+<text x="48" y="196" font-size="20" fill="#1B1C1B" font-weight="400" text-anchor="start">Edit OUT entry</text>
+<rect x="48" y="216" width="76" height="48" rx="6" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="60" y="233" font-size="10" fill="#6F716E" font-weight="400" text-anchor="start">h</text>
+<text x="60" y="254" font-size="15" fill="#1B1C1B" font-weight="400" text-anchor="start">25</text>
+<text x="130" y="246" font-size="16" fill="#1B1C1B" font-weight="400" text-anchor="start">:</text>
+<rect x="140" y="216" width="76" height="48" rx="6" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="152" y="233" font-size="10" fill="#6F716E" font-weight="400" text-anchor="start">m</text>
+<text x="152" y="254" font-size="15" fill="#1B1C1B" font-weight="400" text-anchor="start">30</text>
+<text x="222" y="246" font-size="16" fill="#1B1C1B" font-weight="400" text-anchor="start">:</text>
+<rect x="232" y="216" width="76" height="48" rx="6" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="244" y="233" font-size="10" fill="#6F716E" font-weight="400" text-anchor="start">s</text>
+<text x="244" y="254" font-size="15" fill="#1B1C1B" font-weight="400" text-anchor="start">00</text>
+<rect x="48" y="284" width="264" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<circle cx="68" cy="306" r="5" fill="#3B82F6"/>
+<text x="82" y="311" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Acme Corp</text>
+<polygon points="290,303 302,303 296,310" fill="#6F716E"/>
+<rect x="48" y="340" width="264" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="62" y="367" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<polygon points="290,359 302,359 296,366" fill="#6F716E"/>
+<text x="48" y="412" font-size="12" fill="#6F716E" font-weight="400" text-anchor="start">Hours 24-47 mean the next day (+1).</text>
+<text x="48" y="430" font-size="12" fill="#6F716E" font-weight="400" text-anchor="start">Client and project also change on the</text>
+<text x="48" y="448" font-size="12" fill="#6F716E" font-weight="400" text-anchor="start">paired IN (22:00:00). Deleting removes both.</text>
+<text x="48" y="560" font-size="14" fill="#B3472F" font-weight="500" text-anchor="start">Delete</text>
+<text x="196" y="560" font-size="14" fill="#1F6F5C" font-weight="500" text-anchor="start">Cancel</text>
+<text x="262" y="560" font-size="14" fill="#1F6F5C" font-weight="500" text-anchor="start">Save</text>
+
+</svg>

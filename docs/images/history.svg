@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="740" viewBox="0 0 360 740" font-family="Roboto, 'Helvetica Neue', Arial, sans-serif">
+<rect x="4" y="4" width="352" height="732" rx="36" fill="#FAFAF8" stroke="#C9CBC6" stroke-width="3"/>
+<text x="30" y="34" font-size="12" fill="#1B1C1B">9:41</text>
+<path d="M 50 76 H 28 M 37 67 L 28 76 L 37 85" stroke="#1B1C1B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="80" font-size="20" fill="#1B1C1B" font-weight="500" text-anchor="start">History</text>
+<text x="336" y="80" font-size="14" fill="#1F6F5C" font-weight="500" text-anchor="end">Pick a day</text>
+<rect x="24" y="104" width="312" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="38" y="131" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Last 30 days</text>
+<polygon points="314,123 326,123 320,130" fill="#6F716E"/>
+<rect x="24" y="156" width="150" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="38" y="183" font-size="14" fill="#6F716E" font-weight="400" text-anchor="start">All clients</text>
+<polygon points="152,175 164,175 158,182" fill="#6F716E"/>
+<rect x="186" y="156" width="150" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="200" y="183" font-size="14" fill="#6F716E" font-weight="400" text-anchor="start">All projects</text>
+<polygon points="314,175 326,175 320,182" fill="#6F716E"/>
+<text x="28" y="238" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Hide empty days</text>
+<rect x="292" y="222" width="44" height="26" rx="13" fill="#1F6F5C"/>
+<circle cx="323" cy="235" r="10" fill="#FFFFFF"/>
+<text x="28" y="288" font-size="13" fill="#6F716E" font-weight="400" text-anchor="start">Last 30 days</text>
+<text x="28" y="328" font-size="36" fill="#1B1C1B" font-weight="300" text-anchor="start" font-family="'Roboto Mono', Menlo, Consolas, monospace">142h 25m</text>
+<text x="28" y="382" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Fri 20 Nov</text>
+<rect x="122" y="374" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="374" width="125" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="383" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">8h 05m</text>
+<text x="28" y="428" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Thu 19 Nov</text>
+<rect x="122" y="420" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="420" width="116" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="429" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">7h 40m</text>
+<text x="28" y="474" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Wed 18 Nov</text>
+<rect x="122" y="466" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="466" width="128" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="475" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">8h 20m</text>
+<text x="28" y="520" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Tue 17 Nov</text>
+<rect x="122" y="512" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="512" width="106" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="521" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">6h 55m</text>
+<text x="28" y="566" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Mon 16 Nov</text>
+<rect x="122" y="558" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="558" width="124" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="567" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">8h 10m</text>
+<text x="28" y="612" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Fri 13 Nov</text>
+<rect x="122" y="604" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="604" width="115" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="613" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">7h 30m</text>
+<text x="28" y="658" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Thu 12 Nov</text>
+<rect x="122" y="650" width="132" height="8" rx="4" fill="#EDEEEA"/>
+<rect x="122" y="650" width="121" height="8" rx="4" fill="#1F6F5C"/>
+<text x="336" y="659" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">7h 55m</text>
+
+</svg>

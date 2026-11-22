@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="740" viewBox="0 0 360 740" font-family="Roboto, 'Helvetica Neue', Arial, sans-serif">
+<rect x="4" y="4" width="352" height="732" rx="36" fill="#FAFAF8" stroke="#C9CBC6" stroke-width="3"/>
+<text x="30" y="34" font-size="12" fill="#1B1C1B">9:41</text>
+<path d="M 50 76 H 28 M 37 67 L 28 76 L 37 85" stroke="#1B1C1B" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="80" font-size="20" fill="#1B1C1B" font-weight="500" text-anchor="start">Friday 20 November</text>
+<rect x="24" y="104" width="150" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<circle cx="44" cy="126" r="5" fill="#3B82F6"/>
+<text x="58" y="131" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Acme Corp</text>
+<polygon points="152,123 164,123 158,130" fill="#6F716E"/>
+<rect x="186" y="104" width="150" height="44" rx="14" fill="none" stroke="#C9CBC6" stroke-width="1.5"/>
+<text x="200" y="131" font-size="14" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<polygon points="314,123 326,123 320,130" fill="#6F716E"/>
+<text x="28" y="186" font-size="13" fill="#6F716E" font-weight="400" text-anchor="start">Worked (selected client / project)</text>
+<text x="28" y="238" font-size="48" fill="#1B1C1B" font-weight="300" text-anchor="start" font-family="'Roboto Mono', Menlo, Consolas, monospace">07:00:00</text>
+<rect x="24" y="268" width="312" height="44" rx="12" fill="#EDEEEA"/>
+<circle cx="42" cy="290" r="5" fill="#3B82F6"/>
+<text x="54" y="295" font-size="13" fill="#1B1C1B" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="295" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="295" font-size="13" fill="#1F6F5C" font-weight="700" text-anchor="start">IN</text>
+<text x="324" y="295" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">09:00:00</text>
+<rect x="24" y="318" width="312" height="44" rx="12" fill="#EDEEEA"/>
+<circle cx="42" cy="340" r="5" fill="#3B82F6"/>
+<text x="54" y="345" font-size="13" fill="#1B1C1B" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="345" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="345" font-size="13" fill="#B3472F" font-weight="700" text-anchor="start">OUT</text>
+<text x="324" y="345" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">12:30:00</text>
+<rect x="24" y="368" width="312" height="44" rx="12" fill="#EDEEEA"/>
+<circle cx="42" cy="390" r="5" fill="#3B82F6"/>
+<text x="54" y="395" font-size="13" fill="#1B1C1B" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="395" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="395" font-size="13" fill="#1F6F5C" font-weight="700" text-anchor="start">IN</text>
+<text x="324" y="395" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">22:00:00</text>
+<rect x="24" y="418" width="312" height="44" rx="12" fill="#EDEEEA"/>
+<circle cx="42" cy="440" r="5" fill="#3B82F6"/>
+<text x="54" y="445" font-size="13" fill="#1B1C1B" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="445" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="445" font-size="13" fill="#B3472F" font-weight="700" text-anchor="start">OUT</text>
+<text x="306" y="445" font-size="13" fill="#1B1C1B" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">01:30:00</text>
+<text x="311" y="445" font-size="10" fill="#1F6F5C" font-weight="600" text-anchor="start">+1</text>
+<text x="28" y="500" font-size="12" fill="#6F716E" font-weight="400" text-anchor="start">The OUT after midnight stays on the day of the IN.</text>
+
+</svg>
