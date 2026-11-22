@@ -68,10 +68,11 @@ jobs:
       # Push: only keep the APK as a build artifact.
       - name: Upload APK as build artifact
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WorkHours-${{ steps.version.outputs.name }}
           path: WorkHours-${{ steps.version.outputs.name }}.apk
+          archive: false
           if-no-files-found: error
 
       # Release: attach the APK to the release that triggered the run.
