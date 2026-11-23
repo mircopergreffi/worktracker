@@ -15,7 +15,7 @@ Built with Kotlin, Jetpack Compose (Material 3) and Room. Requires Android 8.0 (
   <tr>
     <td align="center"><img src="docs/images/edit-entry.svg" width="220" alt="Edit entry"><br><sub>Edit an entry</sub></td>
     <td align="center"><img src="docs/images/settings.svg" width="220" alt="Settings"><br><sub>Settings</sub></td>
-    <td></td>
+    <td align="center"><img src="docs/images/main-dark.svg" width="220" alt="Dark theme"><br><sub>Dark theme</sub></td>
   </tr>
 </table>
 
@@ -43,7 +43,7 @@ Separate settings for the IN button and the OUT button: no rounding, minutes up 
 - Rounding never moves an IN into the next day (it stops at 23:59:59).
 
 ### Menu (three dots)
-- **Dark / light theme** switch (follows the system until you choose).
+- **Dark / light theme** switch. Light is the default and uses the colors of the app icon (beige dial, black, red, steel). Dark is modelled on a black Hanhart dial (matte black with cream details and a red accent). The choice is remembered.
 - **History**
 - **Export database** as a text file (`id;day;in_out;time;client_id;project_id;client;project`), saved with the system file picker.
 - **Settings**

@@ -5,11 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.workhours.ui.AppTheme
 import com.example.workhours.ui.AppRoot
+import com.example.workhours.ui.AppTheme
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
@@ -18,8 +20,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val dark by vm.dark.collectAsStateWithLifecycle()
-            val isDark = dark ?: isSystemInDarkTheme()
+            val isDark by vm.dark.collectAsStateWithLifecycle()
+
+            // The theme is chosen in the app, not by the system: keep status / navigation bar icons readable.
+            val view = LocalView.current
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !isDark
+                controller.isAppearanceLightNavigationBars = !isDark
+            }
+
             AppTheme(isDark) { AppRoot(vm, isDark) }
         }
     }

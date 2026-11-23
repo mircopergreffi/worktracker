@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.WorkHours" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.WorkHours" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#EADFC3</item>
+    </style>
 </resources>

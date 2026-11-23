@@ -46,9 +46,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm:ss")
 
     // ---------- theme ----------
-    // null = follow system until the user picks something
-    private val _dark = MutableStateFlow(if (prefs.contains("dark")) prefs.getBoolean("dark", false) else null)
-    val dark: StateFlow<Boolean?> = _dark
+    // The light theme is the default.
+    private val _dark = MutableStateFlow(prefs.getBoolean("dark", false))
+    val dark: StateFlow<Boolean> = _dark
 
     fun setDark(value: Boolean) {
         prefs.edit().putBoolean("dark", value).apply()

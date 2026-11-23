@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="740" viewBox="0 0 360 740" font-family="Roboto, 'Helvetica Neue', Arial, sans-serif">
+<rect x="4" y="4" width="352" height="732" rx="36" fill="#121314" stroke="#6B7075" stroke-width="3"/>
+<text x="30" y="34" font-size="12" fill="#EADFC3">9:41</text>
+<text x="28" y="80" font-size="22" fill="#EADFC3" font-weight="500" text-anchor="start">Work Hours</text>
+<circle cx="328" cy="66" r="2.5" fill="#EADFC3"/>
+<circle cx="328" cy="74" r="2.5" fill="#EADFC3"/>
+<circle cx="328" cy="82" r="2.5" fill="#EADFC3"/>
+<text x="28" y="134" font-size="13" fill="#B5AFA0" font-weight="400" text-anchor="start">Worked today</text>
+<text x="28" y="190" font-size="52" fill="#EADFC3" font-weight="300" text-anchor="start" font-family="'Roboto Mono', Menlo, Consolas, monospace">05:12:40</text>
+<g opacity="0.45">
+<rect x="24" y="216" width="150" height="44" rx="14" fill="none" stroke="#6B7075" stroke-width="1.5"/>
+<circle cx="44" cy="238" r="5" fill="#3B82F6"/>
+<text x="58" y="243" font-size="14" fill="#EADFC3" font-weight="400" text-anchor="start">Acme Corp</text>
+<polygon points="152,235 164,235 158,242" fill="#B5AFA0"/>
+</g>
+<g opacity="0.45">
+<rect x="186" y="216" width="150" height="44" rx="14" fill="none" stroke="#6B7075" stroke-width="1.5"/>
+<text x="200" y="243" font-size="14" fill="#EADFC3" font-weight="400" text-anchor="start">Website</text>
+<polygon points="314,235 326,235 320,242" fill="#B5AFA0"/>
+</g>
+<rect x="24" y="276" width="150" height="52" rx="16" fill="#EADFC3" opacity="0.35"/>
+<text x="99.0" y="309" font-size="18" fill="#1A1A18" font-weight="500" text-anchor="middle">IN</text>
+<rect x="186" y="276" width="150" height="52" rx="16" fill="#D9473A"/>
+<text x="261.0" y="309" font-size="18" fill="#1A1A18" font-weight="500" text-anchor="middle">OUT</text>
+<text x="28" y="372" font-size="15" fill="#EADFC3" font-weight="500" text-anchor="start">Today</text>
+<rect x="24" y="386" width="312" height="44" rx="12" fill="#1F2123"/>
+<circle cx="42" cy="408" r="5" fill="#3B82F6"/>
+<text x="54" y="413" font-size="13" fill="#EADFC3" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="413" font-size="13" fill="#EADFC3" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="413" font-size="13" fill="#EADFC3" font-weight="700" text-anchor="start">IN</text>
+<text x="324" y="413" font-size="13" fill="#EADFC3" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">08:30:12</text>
+<rect x="24" y="436" width="312" height="44" rx="12" fill="#1F2123"/>
+<circle cx="42" cy="458" r="5" fill="#3B82F6"/>
+<text x="54" y="463" font-size="13" fill="#EADFC3" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="463" font-size="13" fill="#EADFC3" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="463" font-size="13" fill="#D9473A" font-weight="700" text-anchor="start">OUT</text>
+<text x="324" y="463" font-size="13" fill="#EADFC3" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">12:02:45</text>
+<rect x="24" y="486" width="312" height="44" rx="12" fill="#1F2123"/>
+<circle cx="42" cy="508" r="5" fill="#3B82F6"/>
+<text x="54" y="513" font-size="13" fill="#EADFC3" font-weight="600" text-anchor="start">Acme Corp</text>
+<text x="132" y="513" font-size="13" fill="#EADFC3" font-weight="400" text-anchor="start">Website</text>
+<text x="200" y="513" font-size="13" fill="#EADFC3" font-weight="700" text-anchor="start">IN</text>
+<text x="324" y="513" font-size="13" fill="#EADFC3" font-weight="400" text-anchor="end" font-family="'Roboto Mono', Menlo, Consolas, monospace">13:10:03</text>
+
+</svg>
