@@ -201,7 +201,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())
+        // Eagerly: the tone trigger reads isIn even while the main screen is not shown (e.g. History is open).
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     // ---------- history filter ----------
     private fun loadPeriod(): HistoryPeriod =
@@ -553,20 +554,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** true = IN tone, false = OUT tone, null = none. Frequency within 3% (min 15 Hz), level at most 8 dB below saved. */
+    /**
+     * Only the tone that can act is listened for, like the buttons: the OUT tone while clocked in, the IN tone otherwise.
+     * true = IN tone, false = OUT tone, null = none. Frequency within 3% (min 15 Hz), level at most 8 dB below saved.
+     */
     private fun matchingTone(r: ToneReading): Boolean? {
-        fun ok(t: ToneReading?) =
-            t != null && abs(r.freq - t.freq) <= max(15f, t.freq * 0.03f) && r.levelDb >= t.levelDb - 8f
-        val inTone = _toneIn.value
-        val outTone = _toneOut.value
-        val matchIn = ok(inTone)
-        val matchOut = ok(outTone)
-        return when {
-            matchIn && matchOut -> abs(r.freq - inTone!!.freq) <= abs(r.freq - outTone!!.freq)
-            matchIn -> true
-            matchOut -> false
-            else -> null
-        }
+        val isIn = !state.value.isIn
+        val t = (if (isIn) _toneIn else _toneOut).value ?: return null
+        val ok = abs(r.freq - t.freq) <= max(15f, t.freq * 0.03f) && r.levelDb >= t.levelDb - 8f
+        return if (ok) isIn else null
     }
 
     private suspend fun isRunning(): Boolean {
