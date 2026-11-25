@@ -47,6 +47,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private companion object {
         const val MATCH_MS = 300L     // a tone must last this long to count
         const val COOLDOWN_MS = 4000L // pause after a tone was acted on
+        const val CALIBRATION_MS = 5000L // ambient noise measurement
     }
 
     private val dao = AppDatabase.get(app).entryDao()
@@ -401,8 +402,77 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         (if (isIn) _toneIn else _toneOut).value = null
     }
 
+    // Ambient noise: measured for 5 seconds when the tone finder opens. Sounds below it plus a margin are ignored.
+    private val _ambientDb = MutableStateFlow(if (prefs.contains("ambient_db")) prefs.getFloat("ambient_db", 0f) else null)
+    val ambientDb: StateFlow<Float?> = _ambientDb
+    private val _marginDb = MutableStateFlow(prefs.getFloat("ambient_margin", 6f))
+    val marginDb: StateFlow<Float> = _marginDb
+    private val _calibration = MutableStateFlow<Float?>(null)
+    /** Progress 0..1 of the ambient noise measurement, null when not measuring. */
+    val calibration: StateFlow<Float?> = _calibration
+    @Volatile private var calibrating = false
+    private val calLevels = ArrayList<Float>()
+    private var calStart = 0L
+
     private val engine = ToneEngine(viewModelScope)
     val toneReading: StateFlow<ToneReading?> = engine.reading
+
+    init {
+        applyThreshold()
+    }
+
+    /** What the engine ignores: everything while measuring, otherwise ambient noise plus the margin. */
+    private fun applyThreshold() {
+        val ambient = _ambientDb.value
+        engine.minLevelDb = when {
+            calibrating -> Float.MAX_VALUE
+            ambient != null -> max(ToneAnalyzer.MIN_DB.toFloat(), ambient + _marginDb.value)
+            else -> ToneAnalyzer.MIN_DB.toFloat()
+        }
+    }
+
+    /** Listens for 5 seconds and stores the ambient level (95th percentile of the peak levels). Keep quiet meanwhile. */
+    fun startCalibration() {
+        synchronized(calLevels) {
+            calLevels.clear()
+            calStart = SystemClock.elapsedRealtime()
+            calibrating = true
+        }
+        _calibration.value = 0f
+        _lastTone.value = null
+        applyThreshold()
+    }
+
+    private fun cancelCalibration() {
+        synchronized(calLevels) { calibrating = false }
+        _calibration.value = null
+        applyThreshold()
+    }
+
+    private fun measureAmbient(peakDb: Float) {
+        synchronized(calLevels) {
+            if (!calibrating) return
+            calLevels.add(peakDb)
+            val elapsed = SystemClock.elapsedRealtime() - calStart
+            _calibration.value = (elapsed / CALIBRATION_MS.toFloat()).coerceAtMost(1f)
+            if (elapsed >= CALIBRATION_MS) {
+                val sorted = calLevels.sorted()
+                val level = sorted[((sorted.size - 1) * 0.95).toInt()]
+                prefs.edit().putFloat("ambient_db", level).apply()
+                _ambientDb.value = level
+                calibrating = false
+                _calibration.value = null
+                applyThreshold()
+            }
+        }
+    }
+
+    fun changeMargin(delta: Float) {
+        val v = (_marginDb.value + delta).coerceIn(0f, 20f)
+        prefs.edit().putFloat("ambient_margin", v).apply()
+        _marginDb.value = v
+        applyThreshold()
+    }
 
     private val _listening = MutableStateFlow(false)
     /** True while the main screen's "Listen for tones" is on. */
@@ -429,7 +499,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setFinderActive(on: Boolean) {
         finderActive = on
-        if (on) _lastTone.value = null
+        if (on) startCalibration() else cancelCalibration()
         updateEngine()
     }
 
@@ -437,6 +507,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun stopAudio() {
         _listening.value = false
         finderActive = false
+        cancelCalibration()
         updateEngine()
     }
 
@@ -452,9 +523,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Called for every analysis frame (about every 46 ms) from the audio thread. */
-    private fun onToneFrame(r: ToneReading?) {
+    private fun onToneFrame(r: ToneReading?, peakDb: Float) {
         if (finderActive) {
-            if (r != null) _lastTone.value = r
+            if (calibrating) measureAmbient(peakDb)
+            else if (r != null) _lastTone.value = r
             return // tones never press IN/OUT while the finder is open
         }
         if (!_listening.value) return

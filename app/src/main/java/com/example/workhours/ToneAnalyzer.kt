@@ -11,6 +11,9 @@ import kotlin.math.log2
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+/** What one analysis found: the tone (null if none) and the level of the strongest peak, which is also measured for noise. */
+data class ToneFrame(val tone: ToneReading?, val peakDb: Float)
+
 /** A detected (or saved) tone: frequency in Hz and the tone's level in dB relative to full scale (0 dB = loudest). */
 data class ToneReading(val freq: Float, val levelDb: Float)
 
@@ -27,8 +30,11 @@ class ToneAnalyzer(private val n: Int = 4096, private val sampleRate: Int = 4410
     private val im = FloatArray(n)
     private val mag = FloatArray(n / 2 + 1)
 
-    /** [samples] holds [n] values in -1..1. Returns null for silence or noise without a clear tone. */
-    fun analyze(samples: FloatArray): ToneReading? {
+    /**
+     * [samples] holds [n] values in -1..1. The tone is null for silence or noise without a clear tone;
+     * [ToneFrame.peakDb] is always the level of the strongest peak (used to measure ambient noise).
+     */
+    fun analyze(samples: FloatArray): ToneFrame {
         for (i in 0 until n) {
             re[i] = samples[i] * window[i]
             im[i] = 0f
@@ -46,7 +52,6 @@ class ToneAnalyzer(private val n: Int = 4096, private val sampleRate: Int = 4410
             if (m > mag[peak]) peak = k
         }
         val mean = sum / (maxBin - minBin + 1)
-        if (mag[peak] < mean * TONAL_RATIO) return null // noise, not a tone
 
         // Parabolic interpolation on the log magnitude gives frequency and amplitude between the bins.
         val a = ln(mag[peak - 1] + 1e-12)
@@ -57,8 +62,9 @@ class ToneAnalyzer(private val n: Int = 4096, private val sampleRate: Int = 4410
         val freq = (peak + p) * sampleRate / n
         val amplitude = 4.0 * exp(b - 0.25 * (a - c) * p) / n // Hann window: amplitude = 4|X| / n
         val db = 20.0 * log10(amplitude)
-        if (db < MIN_DB) return null
-        return ToneReading(freq.toFloat(), db.toFloat())
+
+        val tonal = mag[peak] >= mean * TONAL_RATIO && db >= MIN_DB // a clear peak, not noise
+        return ToneFrame(if (tonal) ToneReading(freq.toFloat(), db.toFloat()) else null, db.toFloat())
     }
 
     private fun fft() {

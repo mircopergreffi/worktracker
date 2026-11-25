@@ -19,7 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -33,6 +35,7 @@ import com.example.workhours.MainViewModel
 import com.example.workhours.Notes
 import com.example.workhours.ToneReading
 import kotlin.math.abs
+import kotlin.math.ceil
 
 fun micGranted(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -60,6 +63,10 @@ fun ToneFinderScreen(vm: MainViewModel, onBack: () -> Unit) {
     val last by vm.lastTone.collectAsStateWithLifecycle()
     val toneIn by vm.toneIn.collectAsStateWithLifecycle()
     val toneOut by vm.toneOut.collectAsStateWithLifecycle()
+    val calibration by vm.calibration.collectAsStateWithLifecycle()
+    val ambientDb by vm.ambientDb.collectAsStateWithLifecycle()
+    val marginDb by vm.marginDb.collectAsStateWithLifecycle()
+    val thresholdDb = if (calibration == null) ambientDb?.let { it + marginDb } else null
     val note = reading?.let { Notes.info(it.freq) }
     val muted = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
 
@@ -87,6 +94,14 @@ fun ToneFinderScreen(vm: MainViewModel, onBack: () -> Unit) {
                 return@Column
             }
 
+            AmbientSection(
+                progress = calibration,
+                ambientDb = ambientDb,
+                marginDb = marginDb,
+                onMeasure = vm::startCalibration,
+                onMargin = vm::changeMargin
+            )
+
             Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     note?.let { "${it.name}${it.octave}" } ?: "--",
@@ -110,7 +125,7 @@ fun ToneFinderScreen(vm: MainViewModel, onBack: () -> Unit) {
             )
 
             Text("Level", color = muted, fontSize = 14.sp)
-            LevelMeter(reading?.levelDb)
+            LevelMeter(reading?.levelDb, thresholdDb)
             Text(
                 reading?.let { "%.1f dB".format(it.levelDb) } ?: "-- dB",
                 fontFamily = FontFamily.Monospace,
@@ -149,7 +164,10 @@ fun ToneFinderScreen(vm: MainViewModel, onBack: () -> Unit) {
             SavedToneRow("OUT tone", toneOut) { vm.clearTone(false) }
 
             Text(
-                "On the main screen, \"Listen for tones\" presses IN or OUT when it hears a saved tone: " +
+                "When this screen opens it listens for 5 seconds to measure the ambient noise; " +
+                    "quieter sounds (ambient plus margin) are ignored here and when listening on the main screen. " +
+                    "Measure again if the place changes. " +
+                    "On the main screen, \"Listen for tones\" presses IN or OUT when it hears a saved tone: " +
                     "same frequency (within 3%, at least 15 Hz), at most 8 dB quieter than saved, for 0.3 seconds. " +
                     "Tones are not acted on while this screen is open.",
                 color = muted,
@@ -199,17 +217,52 @@ private fun CentsGauge(cents: Float?) {
     }
 }
 
-/** -80 dB (left) to 0 dB (right). */
+/** -80 dB (left) to 0 dB (right). The red mark is the ignore threshold (ambient noise plus margin). */
 @Composable
-private fun LevelMeter(db: Float?) {
+private fun LevelMeter(db: Float?, thresholdDb: Float?) {
     val fraction = if (db == null) 0f else ((db + 80f) / 80f).coerceIn(0f, 1f)
-    Box(
-        Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Box(
-            Modifier.fillMaxHeight().fillMaxWidth(fraction)
-                .background(MaterialTheme.colorScheme.primary)
+    val track = MaterialTheme.colorScheme.surfaceVariant
+    val fill = MaterialTheme.colorScheme.primary
+    val marker = MaterialTheme.colorScheme.secondary
+    Canvas(Modifier.fillMaxWidth().height(14.dp)) {
+        val h = size.height
+        val w = size.width
+        drawRoundRect(track, size = Size(w, h), cornerRadius = CornerRadius(h / 2))
+        if (fraction > 0f) drawRoundRect(fill, size = Size(w * fraction, h), cornerRadius = CornerRadius(h / 2))
+        thresholdDb?.let {
+            val x = w * ((it + 80f) / 80f).coerceIn(0f, 1f)
+            drawLine(marker, Offset(x, 0f), Offset(x, h), 2.dp.toPx())
+        }
+    }
+}
+
+/** Ambient noise measurement (5 s when the screen opens) and the margin above it. */
+@Composable
+private fun AmbientSection(
+    progress: Float?,
+    ambientDb: Float?,
+    marginDb: Float,
+    onMeasure: () -> Unit,
+    onMargin: (Float) -> Unit
+) {
+    val muted = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    Text("Ambient noise", fontWeight = FontWeight.Medium)
+    if (progress != null) {
+        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+        val secondsLeft = ceil((1f - progress) * 5f).toInt().coerceAtLeast(1)
+        Text("Measuring, keep quiet... $secondsLeft s", color = muted, fontSize = 14.sp)
+    } else {
+        Text(
+            ambientDb?.let { "%.1f dB, sounds below %.1f dB are ignored".format(it, it + marginDb) } ?: "Not measured yet",
+            fontFamily = FontFamily.Monospace,
+            fontSize = 13.sp
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Margin above ambient", Modifier.weight(1f))
+            TextButton(onClick = { onMargin(-1f) }) { Text("-") }
+            Text("%.0f dB".format(marginDb), fontFamily = FontFamily.Monospace)
+            TextButton(onClick = { onMargin(1f) }) { Text("+") }
+        }
+        OutlinedButton(onClick = onMeasure, Modifier.fillMaxWidth()) { Text("Measure ambient noise again") }
     }
 }

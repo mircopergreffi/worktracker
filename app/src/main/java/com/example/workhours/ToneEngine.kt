@@ -14,7 +14,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Reads the microphone and reports the dominant tone about every 46 ms.
+ * Reads the microphone and reports the dominant tone (and the peak level) about every 46 ms.
  * Only runs while [start] has been called and the app is open; [stop] releases the microphone.
  */
 class ToneEngine(private val scope: CoroutineScope) {
@@ -26,8 +26,11 @@ class ToneEngine(private val scope: CoroutineScope) {
 
     private var job: Job? = null
 
+    /** Tones quieter than this (dB) are ignored: ambient noise plus a margin. */
+    @Volatile var minLevelDb: Float = ToneAnalyzer.MIN_DB.toFloat()
+
     @SuppressLint("MissingPermission") // the caller checks RECORD_AUDIO before starting
-    fun start(onFrame: (ToneReading?) -> Unit, onError: (String) -> Unit) {
+    fun start(onFrame: (ToneReading?, Float) -> Unit, onError: (String) -> Unit) {
         if (job?.isActive == true) return
         job = scope.launch(Dispatchers.IO) {
             var rec: AudioRecord? = null
@@ -66,9 +69,11 @@ class ToneEngine(private val scope: CoroutineScope) {
                     for (i in 0 until read) window[filled + i] = chunk[i] / 32768f
                     filled += read
                     if (filled == WINDOW) {
-                        val tone = analyzer.analyze(window)
+                        val frame = analyzer.analyze(window)
+                        // sounds below the ambient noise level plus margin are ignored
+                        val tone = frame.tone?.takeIf { it.levelDb >= minLevelDb }
                         _reading.value = tone
-                        onFrame(tone)
+                        onFrame(tone, frame.peakDb)
                     }
                 }
             } catch (e: SecurityException) {
