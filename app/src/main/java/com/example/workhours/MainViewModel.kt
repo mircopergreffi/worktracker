@@ -403,7 +403,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         (if (isIn) _toneIn else _toneOut).value = null
     }
 
-    // Ambient noise: measured for 5 seconds when the tone finder opens. Sounds below it plus a margin are ignored.
+    // Ambient noise: measured for 5 seconds the first time the tone finder opens, or on request. Sounds below it plus a margin are ignored.
     private val _ambientDb = MutableStateFlow(if (prefs.contains("ambient_db")) prefs.getFloat("ambient_db", 0f) else null)
     val ambientDb: StateFlow<Float?> = _ambientDb
     private val _marginDb = MutableStateFlow(prefs.getFloat("ambient_margin", 6f))
@@ -500,7 +500,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setFinderActive(on: Boolean) {
         finderActive = on
-        if (on) startCalibration() else cancelCalibration()
+        // Measure the ambient noise only if it was never stored; "Measure ambient noise again" redoes it on request.
+        if (on) { if (_ambientDb.value == null) startCalibration() } else cancelCalibration()
         updateEngine()
     }
 

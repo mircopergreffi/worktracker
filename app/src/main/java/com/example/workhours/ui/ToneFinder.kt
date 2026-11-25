@@ -166,7 +166,7 @@ fun ToneFinderScreen(vm: MainViewModel, onBack: () -> Unit) {
             SavedToneRow("OUT tone", toneOut) { vm.clearTone(false) }
 
             Text(
-                "When this screen opens it listens for 5 seconds to measure the ambient noise; " +
+                "The first time this screen opens it listens for 5 seconds to measure the ambient noise; " +
                     "quieter sounds (ambient plus margin) are ignored here and when listening on the main screen. " +
                     "Measure again if the place changes. " +
                     "On the main screen, \"Listen for tones\" presses IN or OUT when it hears a saved tone: " +
@@ -238,7 +238,7 @@ private fun LevelMeter(db: Float?, thresholdDb: Float?) {
     }
 }
 
-/** Ambient noise measurement (5 s when the screen opens) and the margin above it. */
+/** Ambient noise measurement (5 s the first time the screen opens, or on request) and the margin above it. */
 @Composable
 private fun AmbientSection(
     progress: Float?,
