@@ -2,6 +2,7 @@ package com.example.workhours
 
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.workhours.data.*
@@ -15,6 +16,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.temporal.ChronoUnit
+import kotlin.math.abs
+import kotlin.math.max
 import java.time.format.DateTimeFormatter
 
 data class DaySummary(val day: LocalDate, val seconds: Long, val count: Int)
@@ -40,6 +43,11 @@ data class Selection(val clientId: Long? = null, val projectId: Long? = null)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
+
+    private companion object {
+        const val MATCH_MS = 300L     // a tone must last this long to count
+        const val COOLDOWN_MS = 4000L // pause after a tone was acted on
+    }
 
     private val dao = AppDatabase.get(app).entryDao()
     private val prefs = app.getSharedPreferences("prefs", 0)
@@ -370,6 +378,148 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             dao.setClientProject(listOfNotNull(id, partner?.id), clientId, projectId)
             onResult(null)
         }
+
+    // ---------- tone trigger ----------
+    private fun loadTone(key: String): ToneReading? =
+        if (prefs.contains("${key}_freq")) ToneReading(prefs.getFloat("${key}_freq", 0f), prefs.getFloat("${key}_level", 0f))
+        else null
+
+    private val _toneIn = MutableStateFlow(loadTone("tone_in"))
+    private val _toneOut = MutableStateFlow(loadTone("tone_out"))
+    val toneIn: StateFlow<ToneReading?> = _toneIn
+    val toneOut: StateFlow<ToneReading?> = _toneOut
+
+    fun saveTone(isIn: Boolean, tone: ToneReading) {
+        val key = if (isIn) "tone_in" else "tone_out"
+        prefs.edit().putFloat("${key}_freq", tone.freq).putFloat("${key}_level", tone.levelDb).apply()
+        (if (isIn) _toneIn else _toneOut).value = tone
+    }
+
+    fun clearTone(isIn: Boolean) {
+        val key = if (isIn) "tone_in" else "tone_out"
+        prefs.edit().remove("${key}_freq").remove("${key}_level").apply()
+        (if (isIn) _toneIn else _toneOut).value = null
+    }
+
+    private val engine = ToneEngine(viewModelScope)
+    val toneReading: StateFlow<ToneReading?> = engine.reading
+
+    private val _listening = MutableStateFlow(false)
+    /** True while the main screen's "Listen for tones" is on. */
+    val listening: StateFlow<Boolean> = _listening
+
+    @Volatile private var finderActive = false
+    private val _lastTone = MutableStateFlow<ToneReading?>(null)
+    /** The last tone heard while the tone finder is open; it can be saved as the IN or OUT tone. */
+    val lastTone: StateFlow<ToneReading?> = _lastTone
+
+    private val _events = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    /** Short messages for the user, e.g. "IN recorded by tone". */
+    val events: SharedFlow<String> = _events
+
+    private var matchIsIn: Boolean? = null
+    private var matchSince = 0L
+    private var cooldownUntil = 0L
+
+    fun setListening(on: Boolean) {
+        _listening.value = on
+        matchIsIn = null
+        updateEngine()
+    }
+
+    fun setFinderActive(on: Boolean) {
+        finderActive = on
+        if (on) _lastTone.value = null
+        updateEngine()
+    }
+
+    /** The microphone is only used while the app is open: called when it goes to the background. */
+    fun stopAudio() {
+        _listening.value = false
+        finderActive = false
+        updateEngine()
+    }
+
+    private fun updateEngine() {
+        if (_listening.value || finderActive) {
+            engine.start(this::onToneFrame) { message ->
+                _listening.value = false
+                _events.tryEmit(message)
+            }
+        } else {
+            engine.stop()
+        }
+    }
+
+    /** Called for every analysis frame (about every 46 ms) from the audio thread. */
+    private fun onToneFrame(r: ToneReading?) {
+        if (finderActive) {
+            if (r != null) _lastTone.value = r
+            return // tones never press IN/OUT while the finder is open
+        }
+        if (!_listening.value) return
+
+        val now = SystemClock.elapsedRealtime()
+        if (now < cooldownUntil) {
+            matchIsIn = null
+            return
+        }
+        val which = r?.let { matchingTone(it) }
+        if (which == null) {
+            matchIsIn = null
+            return
+        }
+        if (matchIsIn != which) {
+            matchIsIn = which
+            matchSince = now
+            return
+        }
+        if (now - matchSince >= MATCH_MS) { // the tone has lasted long enough
+            matchIsIn = null
+            cooldownUntil = now + COOLDOWN_MS
+            triggerByTone(which)
+        }
+    }
+
+    /** true = IN tone, false = OUT tone, null = none. Frequency within 3% (min 15 Hz), level at most 8 dB below saved. */
+    private fun matchingTone(r: ToneReading): Boolean? {
+        fun ok(t: ToneReading?) =
+            t != null && abs(r.freq - t.freq) <= max(15f, t.freq * 0.03f) && r.levelDb >= t.levelDb - 8f
+        val inTone = _toneIn.value
+        val outTone = _toneOut.value
+        val matchIn = ok(inTone)
+        val matchOut = ok(outTone)
+        return when {
+            matchIn && matchOut -> abs(r.freq - inTone!!.freq) <= abs(r.freq - outTone!!.freq)
+            matchIn -> true
+            matchOut -> false
+            else -> null
+        }
+    }
+
+    private suspend fun isRunning(): Boolean {
+        val last = dao.lastEntry() ?: return false
+        return last.inOut == "IN" && nowOn(LocalDate.parse(last.day), LocalDateTime.now()) != null
+    }
+
+    private fun triggerByTone(isIn: Boolean) = viewModelScope.launch {
+        if (isIn) {
+            if (isRunning()) return@launch
+            val sel = _selection.value
+            val client = clients.value.find { it.id == sel.clientId }
+            val project = projects.value.find { it.id == sel.projectId && it.clientId == client?.id }
+            if (client == null || project == null) {
+                _events.emit("IN tone heard: select a client and project first")
+                return@launch
+            }
+            clockIn(client.id, project.id)
+            _events.emit("IN recorded by tone")
+        } else {
+            if (!isRunning()) return@launch
+            clockOut()
+            _events.emit("OUT recorded by tone")
+        }
+    }
 
     fun deleteToday() = viewModelScope.launch { dao.deleteDay(LocalDate.now().toString()) }
     fun deleteAll() = viewModelScope.launch { dao.deleteAll() }

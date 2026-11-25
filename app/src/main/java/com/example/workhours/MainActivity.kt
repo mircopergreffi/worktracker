@@ -16,6 +16,12 @@ import com.example.workhours.ui.AppTheme
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
 
+    // Tone listening only works while the app is open.
+    override fun onStop() {
+        vm.stopAudio()
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

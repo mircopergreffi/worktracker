@@ -42,9 +42,19 @@ Separate settings for the IN button and the OUT button: no rounding, minutes up 
 - A rounded time is never earlier than the previous entry.
 - Rounding never moves an IN into the next day (it stops at 23:59:59).
 
+### Tone trigger
+Press IN or OUT with a sound, hands free. It only works while the app is open and you have switched it on.
+- **Tone finder** (menu): a screen that works like a guitar tuner. It listens to the microphone and shows the note, the frequency (Hz), how many cents it is off, and the level (dB) of the tone. The last tone it heard can be saved as the **IN tone** or the **OUT tone**, so the two can be different. Saved tones can be cleared.
+- **Listen for tones** (button on the main screen): tap it to start listening, tap again to stop. When it hears the saved IN tone it presses IN, and when it hears the OUT tone it presses OUT, as if you had tapped the buttons (with the same rounding, client and project rules).
+  - A tone matches when its frequency is within 3% of the saved one (at least 15 Hz), it is at most 8 dB quieter than the saved level, and it lasts 0.3 seconds. After a trigger there is a 4 second pause.
+  - IN needs a selected client and project and is ignored while you are already clocked in; OUT is ignored while you are clocked out.
+  - Listening stops when the app leaves the foreground, and the screen stays on while it is on. Tones are never acted on while the Tone finder is open.
+  - Needs the microphone permission, asked the first time.
+
 ### Menu (three dots)
 - **Dark / light theme** switch. Light is the default and uses the colors of the app icon (beige dial, black, red, steel). Dark is modelled on a black Hanhart dial (matte black with cream details and a red accent). The choice is remembered.
 - **History**
+- **Tone finder**
 - **Export database** as a text file (`id;day;in_out;time;client_id;project_id;client;project`), saved with the system file picker.
 - **Settings**
 
@@ -99,6 +109,7 @@ Open the folder in Android Studio (Ladybug or newer), let Gradle sync, then run.
 - **Signing (optional):** add the secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` to sign with your own key. Without them a temporary debug key is used, and each build has a different key, so updating over an older install needs an uninstall first.
 
 ## Permissions
+- `RECORD_AUDIO`: tone finder and tone trigger. The microphone is only used while the app is open and tone listening or the finder is on.
 - `POST_NOTIFICATIONS`: the worked-time notification.
 - `SCHEDULE_EXACT_ALARM`: exact timing of that notification.
 - `RECEIVE_BOOT_COMPLETED`: restore the notification alarm after a reboot.
@@ -111,7 +122,9 @@ app/src/main/java/com/example/workhours/
   TimeRounding.kt        rounding options
   HistoryPeriod.kt       history periods
   Reminder.kt            notification alarm and receivers
+  ToneAnalyzer.kt        FFT, frequency and level of a tone, note names
+  ToneEngine.kt          microphone reading
   data/                  Room database, models, time and pairing helpers
-  ui/                    screens: main, history, day, settings, clients & projects, entry editor
+  ui/                    screens: main, history, day, settings, clients & projects, entry editor, tone finder
 docs/images/             illustrations used in this README
 ```

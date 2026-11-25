@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +50,11 @@ fun AppRoot(vm: MainViewModel, isDark: Boolean) {
     var screen by rememberSaveable { mutableStateOf("main") }
     var selectedDay by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        vm.events.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    }
+
     BackHandler(screen != "main") {
         screen = when (screen) {
             "day" -> "history"
@@ -59,17 +66,29 @@ fun AppRoot(vm: MainViewModel, isDark: Boolean) {
     when (screen) {
         "settings" -> SettingsScreen(vm, onBack = { screen = "main" }, onManage = { screen = "lists" })
         "lists" -> ManageScreen(vm) { screen = "settings" }
+        "tone" -> ToneFinderScreen(vm) { screen = "main" }
         "history" -> HistoryScreen(vm, onBack = { screen = "main" }) {
             selectedDay = it.toString(); screen = "day"
         }
         "day" -> DayScreen(vm, LocalDate.parse(selectedDay!!)) { screen = "history" }
-        else -> MainScreen(vm, isDark, onSettings = { screen = "settings" }, onHistory = { screen = "history" })
+        else -> MainScreen(
+            vm, isDark,
+            onSettings = { screen = "settings" },
+            onHistory = { screen = "history" },
+            onToneFinder = { screen = "tone" }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHistory: () -> Unit) {
+fun MainScreen(
+    vm: MainViewModel,
+    isDark: Boolean,
+    onSettings: () -> Unit,
+    onHistory: () -> Unit,
+    onToneFinder: () -> Unit
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val clients by vm.clients.collectAsStateWithLifecycle()
     val projects by vm.projects.collectAsStateWithLifecycle()
@@ -79,6 +98,20 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
     var addClient by remember { mutableStateOf(false) }
     var addProject by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<EntryView?>(null) }
+    val listening by vm.listening.collectAsStateWithLifecycle()
+    val toneReading by vm.toneReading.collectAsStateWithLifecycle()
+    val toneIn by vm.toneIn.collectAsStateWithLifecycle()
+    val toneOut by vm.toneOut.collectAsStateWithLifecycle()
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) vm.setListening(true)
+        else Toast.makeText(context, "The microphone permission is needed to listen for tones", Toast.LENGTH_LONG).show()
+    }
+    // Keep the screen on while listening, otherwise the app would leave the foreground.
+    val view = LocalView.current
+    DisposableEffect(listening) {
+        view.keepScreenOn = listening
+        onDispose { view.keepScreenOn = false }
+    }
 
     // While clocked in, the selectors show (and lock to) the active entry's client / project.
     val active = state.entries.lastOrNull()
@@ -114,6 +147,10 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
                         DropdownMenuItem(
                             text = { Text("History") },
                             onClick = { menu = false; onHistory() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Tone finder") },
+                            onClick = { menu = false; onToneFinder() }
                         )
                         DropdownMenuItem(
                             text = { Text("Export database (txt)") },
@@ -182,6 +219,34 @@ fun MainScreen(vm: MainViewModel, isDark: Boolean, onSettings: () -> Unit, onHis
                         contentColor = MaterialTheme.colorScheme.background
                     )
                 ) { Text("OUT", fontSize = 18.sp, fontWeight = FontWeight.Medium) }
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = {
+                    when {
+                        listening -> vm.setListening(false)
+                        toneIn == null && toneOut == null ->
+                            Toast.makeText(context, "Save a tone first: menu > Tone finder", Toast.LENGTH_LONG).show()
+                        micGranted(context) -> vm.setListening(true)
+                        else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                if (listening) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(if (listening) "Listening for tones, tap to stop" else "Listen for tones")
+            }
+            if (listening) {
+                Text(
+                    toneReading?.let { "Hearing %.0f Hz, %.0f dB".format(it.freq, it.levelDb) } ?: "Listening...",
+                    modifier = Modifier.padding(top = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontSize = 12.sp
+                )
             }
             Spacer(Modifier.height(32.dp))
             Text(if (state.carriedOver) "Yesterday" else "Today", fontWeight = FontWeight.Medium, fontSize = 16.sp)
