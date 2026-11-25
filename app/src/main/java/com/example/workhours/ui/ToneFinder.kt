@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
 import com.example.workhours.Notes
@@ -48,10 +49,11 @@ fun ToneFinderScreen(vm: MainViewModel, onBack: () -> Unit) {
     var hasMic by remember { mutableStateOf(micGranted(context)) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasMic = it }
 
-    // The microphone is only used while this screen is open and permitted; the screen stays on.
-    DisposableEffect(hasMic) {
+    // The microphone is only used while this screen is open, visible and permitted; the screen stays on.
+    // Restarts after the app returns to the foreground (e.g. the phone is unlocked), since onStop stops the audio.
+    LifecycleStartEffect(hasMic) {
         if (hasMic) vm.setFinderActive(true)
-        onDispose { vm.setFinderActive(false) }
+        onStopOrDispose { vm.setFinderActive(false) }
     }
     val view = LocalView.current
     DisposableEffect(hasMic) {
