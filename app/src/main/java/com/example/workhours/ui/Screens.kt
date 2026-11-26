@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workhours.MainViewModel
+import com.example.workhours.R
 import com.example.workhours.data.DAY_SECONDS
 import com.example.workhours.data.EntryView
 import com.example.workhours.data.formatSeconds
@@ -130,11 +131,26 @@ fun MainScreen(
         }
     }
 
+    // The app title tells what the counter shows.
+    val remaining = state.targetSeconds - state.workedSeconds
+    val title = when {
+        !showRemaining -> if (state.carriedOver) "Worked (since yesterday)" else "Worked today"
+        remaining >= 0 -> if (state.carriedOver) "Remaining (since yesterday)" else "Remaining today"
+        else -> if (state.carriedOver) "Overtime (since yesterday)" else "Overtime today"
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Work Hours") },
+                title = {
+                    Text(
+                        title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { showRemaining = !showRemaining }
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 actions = {
                     IconButton(onClick = { menu = true }) {
@@ -169,18 +185,10 @@ fun MainScreen(
         Column(
             Modifier.padding(padding).padding(horizontal = 24.dp).fillMaxSize()
         ) {
-            Spacer(Modifier.height(24.dp))
-            // Tapping the counter switches between worked and remaining time.
+            // Tapping the counter (or the title) switches between worked and remaining time.
             Column(
                 Modifier.clip(RoundedCornerShape(12.dp)).clickable { showRemaining = !showRemaining }
             ) {
-                val remaining = state.targetSeconds - state.workedSeconds
-                val label = when {
-                    !showRemaining -> if (state.carriedOver) "Worked (session since yesterday)" else "Worked today"
-                    remaining >= 0 -> if (state.carriedOver) "Remaining (session since yesterday)" else "Remaining today"
-                    else -> if (state.carriedOver) "Overtime (session since yesterday)" else "Overtime today"
-                }
-                Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
                 Text(
                     when {
                         !showRemaining -> formatHms(state.workedSeconds)
@@ -202,67 +210,80 @@ fun MainScreen(
             }
             Spacer(Modifier.height(20.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Selector(
-                    label = "Client",
-                    selected = client?.let { Option(it.id, it.name, it.color) },
-                    options = clients.map { Option(it.id, it.name, it.color) },
-                    enabled = !state.isIn,
-                    addLabel = "+ New client",
-                    onSelect = vm::selectClient,
-                    onAdd = { addClient = true },
-                    modifier = Modifier.weight(1f)
-                )
-                Selector(
-                    label = "Project",
-                    selected = project?.let { Option(it.id, it.name, null) },
-                    options = clientProjects.map { Option(it.id, it.name, null) },
-                    enabled = !state.isIn && client != null,
-                    addLabel = "+ New project",
-                    onSelect = vm::selectProject,
-                    onAdd = { addProject = true },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = { if (client != null && project != null) vm.clockIn(client.id, project.id) },
-                    enabled = !state.isIn && client != null && project != null,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) { Text("IN", fontSize = 18.sp, fontWeight = FontWeight.Medium) }
-                Button(
-                    onClick = { vm.clockOut() },
-                    enabled = state.isIn,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.background
-                    )
-                ) { Text("OUT", fontSize = 18.sp, fontWeight = FontWeight.Medium) }
-            }
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = {
-                    when {
-                        listening -> vm.setListening(false)
-                        toneIn == null && toneOut == null ->
-                            Toast.makeText(context, "Save a tone first: menu > Tone finder", Toast.LENGTH_LONG).show()
-                        micGranted(context) -> vm.setListening(true)
-                        else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+            // IN and OUT share the width left by the square mic button; the client selector
+            // lines up with IN and the project selector takes the rest.
+            val gap = 12.dp
+            val buttonHeight = 56.dp
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val inOutWidth = (maxWidth - buttonHeight - gap * 2) / 2
+                Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        Selector(
+                            label = "Client",
+                            selected = client?.let { Option(it.id, it.name, it.color) },
+                            options = clients.map { Option(it.id, it.name, it.color) },
+                            enabled = !state.isIn,
+                            addLabel = "+ New client",
+                            onSelect = vm::selectClient,
+                            onAdd = { addClient = true },
+                            modifier = Modifier.width(inOutWidth)
+                        )
+                        Selector(
+                            label = "Project",
+                            selected = project?.let { Option(it.id, it.name, null) },
+                            options = clientProjects.map { Option(it.id, it.name, null) },
+                            enabled = !state.isIn && client != null,
+                            addLabel = "+ New project",
+                            onSelect = vm::selectProject,
+                            onAdd = { addProject = true },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
-                },
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                if (listening) {
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary))
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.height(gap))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        Button(
+                            onClick = { if (client != null && project != null) vm.clockIn(client.id, project.id) },
+                            enabled = !state.isIn && client != null && project != null,
+                            modifier = Modifier.width(inOutWidth).height(buttonHeight),
+                            shape = RoundedCornerShape(16.dp)
+                        ) { Text("IN", fontSize = 18.sp, fontWeight = FontWeight.Medium) }
+                        Button(
+                            onClick = { vm.clockOut() },
+                            enabled = state.isIn,
+                            modifier = Modifier.width(inOutWidth).height(buttonHeight),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary,
+                                contentColor = MaterialTheme.colorScheme.background
+                            )
+                        ) { Text("OUT", fontSize = 18.sp, fontWeight = FontWeight.Medium) }
+                        // Listen for tones: filled while listening.
+                        OutlinedButton(
+                            onClick = {
+                                when {
+                                    listening -> vm.setListening(false)
+                                    toneIn == null && toneOut == null ->
+                                        Toast.makeText(context, "Save a tone first: menu > Tone finder", Toast.LENGTH_LONG).show()
+                                    micGranted(context) -> vm.setListening(true)
+                                    else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            },
+                            modifier = Modifier.size(buttonHeight),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            colors = if (listening) ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ) else ButtonDefaults.outlinedButtonColors()
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_mic),
+                                contentDescription = if (listening) "Stop listening for tones" else "Listen for tones"
+                            )
+                        }
+                    }
                 }
-                Text(if (listening) "Listening for tones, tap to stop" else "Listen for tones")
             }
             if (listening) {
                 Text(
