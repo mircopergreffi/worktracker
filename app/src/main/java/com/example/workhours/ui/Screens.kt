@@ -98,6 +98,7 @@ fun MainScreen(
     var addClient by remember { mutableStateOf(false) }
     var addProject by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<EntryView?>(null) }
+    var showRemaining by rememberSaveable { mutableStateOf(false) }
     val listening by vm.listening.collectAsStateWithLifecycle()
     val toneReading by vm.toneReading.collectAsStateWithLifecycle()
     val toneIn by vm.toneIn.collectAsStateWithLifecycle()
@@ -169,13 +170,36 @@ fun MainScreen(
             Modifier.padding(padding).padding(horizontal = 24.dp).fillMaxSize()
         ) {
             Spacer(Modifier.height(24.dp))
-            Text(if (state.carriedOver) "Worked (session since yesterday)" else "Worked today", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
-            Text(
-                formatHms(state.workedSeconds),
-                fontSize = 56.sp,
-                fontWeight = FontWeight.Light,
-                fontFamily = FontFamily.Monospace
-            )
+            // Tapping the counter switches between worked and remaining time.
+            Column(
+                Modifier.clip(RoundedCornerShape(12.dp)).clickable { showRemaining = !showRemaining }
+            ) {
+                val remaining = state.targetSeconds - state.workedSeconds
+                val label = when {
+                    !showRemaining -> if (state.carriedOver) "Worked (session since yesterday)" else "Worked today"
+                    remaining >= 0 -> if (state.carriedOver) "Remaining (session since yesterday)" else "Remaining today"
+                    else -> if (state.carriedOver) "Overtime (session since yesterday)" else "Overtime today"
+                }
+                Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
+                Text(
+                    when {
+                        !showRemaining -> formatHms(state.workedSeconds)
+                        remaining >= 0 -> formatHms(remaining)
+                        else -> "+" + formatHms(-remaining)
+                    },
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Light,
+                    fontFamily = FontFamily.Monospace
+                )
+                // ETA is counted from the start of the shown day; "+1" when it falls on the day after today.
+                val daysAfterToday = state.etaSeconds / DAY_SECONDS - (if (state.carriedOver) 1 else 0)
+                Text(
+                    "ETA: " + formatSeconds(state.etaSeconds % DAY_SECONDS) + if (daysAfterToday > 0) " (+1)" else "",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
             Spacer(Modifier.height(20.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -292,6 +316,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
     val roundOut by vm.roundOut.collectAsStateWithLifecycle()
     val notifyEnabled by vm.notifyEnabled.collectAsStateWithLifecycle()
     val notifyMinutes by vm.notifyMinutes.collectAsStateWithLifecycle()
+    val workdayMinutes by vm.workdayMinutes.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "" }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -321,6 +346,14 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
             Text("Lists", fontWeight = FontWeight.Medium)
             OutlinedButton(onClick = onManage, Modifier.fillMaxWidth()) { Text("Clients & projects") }
             Spacer(Modifier.height(12.dp))
+            Text("Working time per day", fontWeight = FontWeight.Medium)
+            Text(
+                "Used for the remaining time and the ETA on the main screen.",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                fontSize = 14.sp
+            )
+            HoursMinutesFields(minutes = workdayMinutes, onChange = vm::setWorkdayMinutes)
+            Spacer(Modifier.height(12.dp))
             Text("Notification", fontWeight = FontWeight.Medium)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Notify when today's worked time is reached", Modifier.weight(1f))
@@ -335,7 +368,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onManage: () -> Unit) 
                 )
             }
             if (notifyEnabled) {
-                NotifyTimeFields(minutes = notifyMinutes, onChange = vm::setNotifyMinutes)
+                HoursMinutesFields(minutes = notifyMinutes, onChange = vm::setNotifyMinutes)
                 val exactAllowed = Build.VERSION.SDK_INT < 31 ||
                     context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
                 if (!exactAllowed) {
@@ -450,9 +483,9 @@ fun EntryRow(e: EntryView, onClick: (() -> Unit)? = null) {
     }
 }
 
-/** Hours and minutes of worked time after which the notification is shown. Saved when valid (1 min to 23:59). */
+/** Hours and minutes of a duration. Saved when valid (1 min to 23:59). */
 @Composable
-private fun NotifyTimeFields(minutes: Int, onChange: (Int) -> Unit) {
+private fun HoursMinutesFields(minutes: Int, onChange: (Int) -> Unit) {
     var h by remember { mutableStateOf((minutes / 60).toString()) }
     var m by remember { mutableStateOf((minutes % 60).toString()) }
 

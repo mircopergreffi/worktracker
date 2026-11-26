@@ -57,6 +57,30 @@ fun workedSeconds(entries: List<Marked>, openUntil: Int?): Long {
 }
 
 /**
+ * Seconds from the start of the day at which the worked time reached [target], or null if not yet.
+ * Same pairing rules as [workedSeconds].
+ */
+fun targetReachedAt(entries: List<Marked>, target: Long, openUntil: Int?): Int? {
+    var total = 0L
+    var start: Int? = null
+    for (e in entries) {
+        val t = parseSeconds(e.time)
+        if (e.inOut == "IN") {
+            if (start == null) start = t
+        } else if (start != null) {
+            val len = maxOf(0, t - start)
+            if (total + len >= target) return start + (target - total).toInt()
+            total += len
+            start = null
+        }
+    }
+    if (start != null && openUntil != null && total + maxOf(0, openUntil - start) >= target) {
+        return start + (target - total).toInt()
+    }
+    return null
+}
+
+/**
  * Deleting the very last entry removes only that entry when it is from today, or an OUT that
  * ended after midnight of yesterday's session: the IN stays open and the live timer runs again.
  */

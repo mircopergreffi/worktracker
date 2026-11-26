@@ -29,7 +29,14 @@ data class UiState(
     /** True when the main screen shows yesterday's session that is still running past midnight. */
     val carriedOver: Boolean = false,
     /** Unfiltered entries of the day (dayState only), used to find IN/OUT partners. */
-    val allEntries: List<EntryView> = emptyList()
+    val allEntries: List<EntryView> = emptyList(),
+    /** Working time per day from the settings (main screen only). */
+    val targetSeconds: Long = 0,
+    /**
+     * When the target is (or was) reached, in seconds from the start of the shown day (may be 24h+):
+     * the moment it was reached, or now plus the remaining time (main screen only).
+     */
+    val etaSeconds: Int = 0
 )
 
 data class HistoryFilter(
@@ -97,6 +104,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setNotifyMinutes(totalMinutes: Int) {
         prefs.edit().putInt("notify_minutes", totalMinutes).apply()
         _notifyMinutes.value = totalMinutes
+    }
+
+    // ---------- working time per day ----------
+    private val _workdayMinutes = MutableStateFlow(prefs.getInt("workday_minutes", 8 * 60))
+    val workdayMinutes: StateFlow<Int> = _workdayMinutes
+
+    fun setWorkdayMinutes(totalMinutes: Int) {
+        prefs.edit().putInt("workday_minutes", totalMinutes).apply()
+        _workdayMinutes.value = totalMinutes
     }
 
     // ---------- clients / projects ----------
@@ -192,12 +208,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val state: StateFlow<UiState> = workingDay
         .flatMapLatest { day ->
-            dao.observeDay(day.toString()).combine(clock) { entries, now ->
+            combine(dao.observeDay(day.toString()), clock, _workdayMinutes) { entries, now, minutes ->
+                val nowSecs = nowOn(day, now) ?: now.toLocalTime().toSecondOfDay()
+                val worked = workedSeconds(entries, nowSecs)
+                val target = minutes * 60L
                 UiState(
                     entries = entries,
-                    workedSeconds = workedSeconds(entries, nowOn(day, now)),
+                    workedSeconds = worked,
                     isIn = entries.lastOrNull()?.inOut == "IN",
-                    carriedOver = day != now.toLocalDate()
+                    carriedOver = day != now.toLocalDate(),
+                    targetSeconds = target,
+                    etaSeconds = targetReachedAt(entries, target, nowSecs)
+                        ?: (nowSecs + (target - worked)).toInt()
                 )
             }
         }
